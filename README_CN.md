@@ -9,7 +9,8 @@
 ```
 vibe-coding-script/
 ├── claude-code/          # Claude Code 相关脚本
-│   └── auto-approve-setup.sh
+│   ├── auto-approve-setup.sh
+│   └── iterm-status-setup.sh
 ├── README.md             # 英文说明
 └── README_CN.md          # 中文说明
 ```
@@ -21,6 +22,7 @@ vibe-coding-script/
 位于 `claude-code/` 目录，包含 Claude Code CLI 工具的配置脚本。
 
 - **auto-approve-setup.sh** - 自动配置 Claude Code 跳过 Bash 命令确认
+- **iterm-status-setup.sh** - iTerm2 tab 颜色和标题状态指示器（执行中 / 待确认 / 等待输入）
 
 详见 [claude-code/README_CN.md](./claude-code/README_CN.md)
 

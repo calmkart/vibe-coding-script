@@ -9,7 +9,8 @@ A collection of utility scripts for various vibe coding tools.
 ```
 vibe-coding-script/
 ├── claude-code/          # Claude Code related scripts
-│   └── auto-approve-setup.sh
+│   ├── auto-approve-setup.sh
+│   └── iterm-status-setup.sh
 ├── README.md             # English documentation
 └── README_CN.md          # Chinese documentation
 ```
@@ -21,6 +22,7 @@ vibe-coding-script/
 Located in the `claude-code/` directory, containing configuration scripts for the Claude Code CLI tool.
 
 - **auto-approve-setup.sh** - Auto-configure Claude Code to skip Bash command confirmations
+- **iterm-status-setup.sh** - iTerm2 tab color & title indicator for Claude Code status (Working / Action Needed / Ready)
 
 See [claude-code/README.md](./claude-code/README.md) for details.
 
