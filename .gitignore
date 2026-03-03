@@ -11,3 +11,6 @@ Thumbs.db
 # Temporary files
 *.tmp
 *.log
+
+# CLAUDE
+.planning/

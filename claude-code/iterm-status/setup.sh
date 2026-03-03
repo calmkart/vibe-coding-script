@@ -89,23 +89,23 @@ do_install() {
                 p=":New Bookmarks:${i}"
 
                 "$PB" -c "Set '${p}:Title Components' 3" "$ITERM_PLIST" 2>/dev/null ||
-                "$PB" -c "Add '${p}:Title Components' integer 3" "$ITERM_PLIST" 2>/dev/null
+                "$PB" -c "Add '${p}:Title Components' integer 3" "$ITERM_PLIST" 2>/dev/null || true
 
                 "$PB" -c "Set '${p}:Allow Title Setting' true" "$ITERM_PLIST" 2>/dev/null ||
-                "$PB" -c "Add '${p}:Allow Title Setting' bool true" "$ITERM_PLIST" 2>/dev/null
+                "$PB" -c "Add '${p}:Allow Title Setting' bool true" "$ITERM_PLIST" 2>/dev/null || true
 
                 # Silence bell to avoid visual flash / screen icons
                 "$PB" -c "Set '${p}:Visual Bell' false" "$ITERM_PLIST" 2>/dev/null ||
-                "$PB" -c "Add '${p}:Visual Bell' bool false" "$ITERM_PLIST" 2>/dev/null
+                "$PB" -c "Add '${p}:Visual Bell' bool false" "$ITERM_PLIST" 2>/dev/null || true
 
                 "$PB" -c "Set '${p}:Flashing Bell' false" "$ITERM_PLIST" 2>/dev/null ||
-                "$PB" -c "Add '${p}:Flashing Bell' bool false" "$ITERM_PLIST" 2>/dev/null
+                "$PB" -c "Add '${p}:Flashing Bell' bool false" "$ITERM_PLIST" 2>/dev/null || true
 
                 "$PB" -c "Set '${p}:Silence Bell' true" "$ITERM_PLIST" 2>/dev/null ||
-                "$PB" -c "Add '${p}:Silence Bell' bool true" "$ITERM_PLIST" 2>/dev/null
+                "$PB" -c "Add '${p}:Silence Bell' bool true" "$ITERM_PLIST" 2>/dev/null || true
 
                 "$PB" -c "Set '${p}:BM Growl' false" "$ITERM_PLIST" 2>/dev/null ||
-                "$PB" -c "Add '${p}:BM Growl' bool false" "$ITERM_PLIST" 2>/dev/null
+                "$PB" -c "Add '${p}:BM Growl' bool false" "$ITERM_PLIST" 2>/dev/null || true
             done
 
             ok "Configured ${count} iTerm2 profile(s)"
@@ -142,7 +142,7 @@ fi
 input=\$(cat 2>/dev/null)
 dir=""
 if [ -n "\$input" ]; then
-    cwd=\$(echo "\$input" | grep -o '"cwd":"[^"]*"' | head -1 | cut -d'"' -f4)
+    cwd=\$(echo "\$input" | grep -oE '"cwd" *: *"[^"]*"' | head -1 | sed 's/.*: *"//;s/"$//')
     [ -n "\$cwd" ] && dir=\$(basename "\$cwd")
 fi
 
@@ -346,7 +346,7 @@ case "$cmd" in
         lang="en"
         while [ $# -gt 0 ]; do
             case "$1" in
-                --lang) lang="${2:-en}"; shift 2 ;;
+                --lang) [ $# -ge 2 ] || { err "Missing value for --lang"; usage; }; lang="$2"; shift 2 ;;
                 --lang=*) lang="${1#--lang=}"; shift ;;
                 *) err "Unknown option: $1"; usage ;;
             esac

@@ -4,29 +4,19 @@ set -euo pipefail
 # ============================================================
 #  Claude Code × iTerm2  One-Click Setup
 #
-#  Installs all features in a single command:
-#    • Auto-approve Bash commands (no manual confirmation)
-#    • iTerm2 tab color & title status indicator
-#    • Multi-session dashboard (badges, status bar, popover)
+#  Orchestrator that delegates to feature-specific installers.
 #
 #  Usage:
-#    ./setup.sh install              # Install (English, default)
-#    ./setup.sh install --lang zh    # Install (Chinese labels)
-#    ./setup.sh uninstall            # Remove all changes
-#    ./setup.sh status               # Show current state
+#    ./setup.sh install [feature] [--lang zh]
+#    ./setup.sh uninstall [feature]
+#    ./setup.sh status
+#
+#  Features: auto-approve, iterm-status, iterm-monitor
+#  Omit feature name to install/uninstall all.
 # ============================================================
 
-CLAUDE_DIR="$HOME/.claude"
-HOOKS_DIR="$CLAUDE_DIR/hooks"
-SETTINGS_FILE="$CLAUDE_DIR/settings.json"
-HOOK_APPROVE="$HOOKS_DIR/auto-approve.sh"
-HOOK_STATUS="$HOOKS_DIR/iterm-status.sh"
-ITERM_PLIST="$HOME/Library/Preferences/com.googlecode.iterm2.plist"
-AUTOLAUNCH_DIR="$HOME/Library/Application Support/iTerm2/Scripts/AutoLaunch"
-DAEMON_DEST="$AUTOLAUNCH_DIR/claude-session-monitor.py"
-SESSION_DIR="/tmp/claude-sessions"
-SENTINEL_BEGIN="# --- BEGIN claude-session-monitor ---"
-SENTINEL_END="# --- END claude-session-monitor ---"
+SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
+FEATURES=("auto-approve" "iterm-status" "iterm-monitor")
 
 info()  { printf '\033[1;34m[INFO]\033[0m  %s\n' "$1"; }
 ok()    { printf '\033[1;32m[  OK]\033[0m  %s\n' "$1"; }
@@ -37,764 +27,206 @@ usage() {
     cat <<EOF
 Claude Code × iTerm2 One-Click Setup
 
-Installs all features in a single command:
-  • Auto-approve Bash commands
-  • iTerm2 tab color & title indicator
-  • Multi-session dashboard (badges, status bar, popover)
-
 Usage:
-  $(basename "$0") install [--lang zh]    Install all (default: English)
-  $(basename "$0") uninstall              Remove all changes
-  $(basename "$0") status                 Show current state
+  $(basename "$0") install [feature] [--lang zh]   Install (all or specific)
+  $(basename "$0") uninstall [feature]              Uninstall (all or specific)
+  $(basename "$0") status                           Show current state
+
+Features:
+  auto-approve    Auto-approve Bash commands (no manual confirmation)
+  iterm-status    iTerm2 tab color & title status indicator
+  iterm-monitor   Multi-session dashboard (badges, status bar, popover)
+
+Omit feature name to install/uninstall all features.
+
+Examples:
+  $(basename "$0") install                     Install all (English)
+  $(basename "$0") install --lang zh           Install all (Chinese)
+  $(basename "$0") install iterm-status        Install only tab indicator
+  $(basename "$0") uninstall iterm-monitor     Uninstall only dashboard
 EOF
     exit 1
+}
+
+is_valid_feature() {
+    local name="$1"
+    for f in "${FEATURES[@]}"; do
+        [ "$f" = "$name" ] && return 0
+    done
+    return 1
 }
 
 # ===========================================================
 #  INSTALL
 # ===========================================================
 do_install() {
-    local lang="${1:-en}"
+    local targets=()
+    local extra_args=()
 
-    # Resolve labels
-    if [ "$lang" = "zh" ]; then
-        L_WORKING="执行中"; L_ATTENTION="待确认"; L_DONE="等待输入"
-    else
-        L_WORKING="Working"; L_ATTENTION="Action Needed"; L_DONE="Ready"
+    # Parse: first non-flag arg is feature name, rest are passed through
+    while [ $# -gt 0 ]; do
+        case "$1" in
+            --lang)
+                [ $# -ge 2 ] || { err "Missing value for --lang"; usage; }
+                extra_args+=("--lang" "$2"); shift 2 ;;
+            --lang=*)
+                extra_args+=("--lang" "${1#--lang=}"); shift ;;
+            -*)
+                err "Unknown option: $1"; usage ;;
+            *)
+                if is_valid_feature "$1"; then
+                    targets+=("$1")
+                else
+                    err "Unknown feature: $1"
+                    echo "  Available: ${FEATURES[*]}"
+                    exit 1
+                fi
+                shift ;;
+        esac
+    done
+
+    # Default: all features
+    if [ ${#targets[@]} -eq 0 ]; then
+        targets=("${FEATURES[@]}")
     fi
 
     echo ""
-    echo "  Claude Code × iTerm2 One-Click Setup"
-    echo "  ====================================="
+    echo "  Claude Code × iTerm2 Setup"
+    echo "  ==========================="
     echo ""
 
-    # ----------------------------------------------------------
-    # 1. Pre-flight — check all dependencies at once
-    # ----------------------------------------------------------
+    # Pre-flight
     info "Checking dependencies..."
     local missing=0
+    if [[ "$(uname)" != "Darwin" ]]; then err "macOS is required"; exit 1; fi
 
-    if [[ "$(uname)" != "Darwin" ]]; then
-        err "macOS is required"; exit 1
-    fi
-
-    if ! command -v python3 &>/dev/null; then
-        err "python3 not found"; missing=1
-    fi
-
-    if ! command -v jq &>/dev/null; then
-        err "jq not found — install with: brew install jq"; missing=1
-    fi
-
-    if [ ! -f "$ITERM_PLIST" ]; then
-        err "iTerm2 not found — install iTerm2 first"; missing=1
-    fi
-
-    if [ "$missing" -eq 1 ]; then
-        echo ""
-        err "Please install missing dependencies and re-run."
-        exit 1
-    fi
-
-    if ! command -v claude &>/dev/null; then
-        warn "claude command not found — install Claude Code first"
-    fi
-
-    mkdir -p "$HOOKS_DIR"
-    ok "All dependencies OK"
-
-    # ----------------------------------------------------------
-    # 2. Auto-approve hook
-    # ----------------------------------------------------------
-    info "Creating auto-approve hook..."
-
-    cat > "$HOOK_APPROVE" << 'APPROVEEOF'
-#!/bin/bash
-# Auto-approve all Bash commands (generated by setup.sh)
-jq -n '{
-  "hookSpecificOutput": {
-    "hookEventName": "PreToolUse",
-    "permissionDecision": "allow",
-    "permissionDecisionReason": "Auto-approved by hook"
-  }
-}'
-APPROVEEOF
-    chmod +x "$HOOK_APPROVE"
-    ok "Auto-approve hook: $HOOK_APPROVE"
-
-    # ----------------------------------------------------------
-    # 3. iTerm2 status hook (with language)
-    # ----------------------------------------------------------
-    info "Creating status indicator hook (lang=$lang)..."
-
-    cat > "$HOOK_STATUS" <<EOF
-#!/bin/bash
-# iTerm2 tab status indicator for Claude Code
-# Generated by setup.sh (lang=$lang)
-
-L_WORKING="$L_WORKING"; L_ATTENTION="$L_ATTENTION"; L_DONE="$L_DONE"
-
-CACHE="/tmp/iterm-tty-\$PPID"
-if [ -f "\$CACHE" ]; then
-    read -r TTY < "\$CACHE"
-else
-    pid=\$PPID; TTY="/dev/tty"
-    while [ "\$pid" -gt 1 ]; do
-        t=\$(ps -o tty= -p "\$pid" 2>/dev/null | tr -d ' ')
-        if [ -n "\$t" ] && [ "\$t" != "??" ] && [ -w "/dev/\$t" ]; then
-            TTY="/dev/\$t"; break
+    for target in "${targets[@]}"; do
+        case "$target" in
+            auto-approve)
+                command -v jq &>/dev/null || { err "jq not found — brew install jq"; missing=1; } ;;
+            iterm-status|iterm-monitor)
+                [ -f "$HOME/Library/Preferences/com.googlecode.iterm2.plist" ] || { err "iTerm2 not found"; missing=1; } ;;
+        esac
+        if [ "$target" = "iterm-monitor" ]; then
+            command -v python3 &>/dev/null || { err "python3 not found"; missing=1; }
         fi
-        pid=\$(ps -o ppid= -p "\$pid" 2>/dev/null | tr -d ' ')
     done
-    echo "\$TTY" > "\$CACHE"
-fi
+    [ "$missing" -eq 1 ] && { echo ""; err "Please install missing dependencies and re-run."; exit 1; }
+    ok "Dependencies OK"
+    echo ""
 
-input=\$(cat 2>/dev/null)
-dir=""
-if [ -n "\$input" ]; then
-    cwd=\$(echo "\$input" | grep -o '"cwd":"[^"]*"' | head -1 | cut -d'"' -f4)
-    [ -n "\$cwd" ] && dir=\$(basename "\$cwd")
-fi
-
-set_title() { printf '\033]1;%s\a' "\$1" > "\$TTY" 2>/dev/null; }
-
-case "\$1" in
-    working)
-        printf '\033]6;1;bg;red;brightness;50\a\033]6;1;bg;green;brightness;145\a\033]6;1;bg;blue;brightness;80\a' > "\$TTY" 2>/dev/null
-        set_title "◉ \${L_WORKING}\${dir:+ · \$dir}"
-        ;;
-    attention)
-        printf '\033]6;1;bg;red;brightness;200\a\033]6;1;bg;green;brightness;150\a\033]6;1;bg;blue;brightness;50\a' > "\$TTY" 2>/dev/null
-        set_title "⏸ \${L_ATTENTION}\${dir:+ · \$dir}"
-        ;;
-    done)
-        printf '\033]6;1;bg;red;brightness;65\a\033]6;1;bg;green;brightness;105\a\033]6;1;bg;blue;brightness;200\a' > "\$TTY" 2>/dev/null
-        set_title "✓ \${L_DONE}\${dir:+ · \$dir}"
-        ;;
-    reset)
-        printf '\033]6;1;bg;*;default\a' > "\$TTY" 2>/dev/null
-        set_title ""
-        ;;
-esac
-EOF
-    chmod +x "$HOOK_STATUS"
-    ok "Status hook: $HOOK_STATUS"
-
-    # ----------------------------------------------------------
-    # 4. Patch status hook with session monitor block
-    # ----------------------------------------------------------
-    info "Adding session monitor to hook..."
-
-    if grep -q "$SENTINEL_BEGIN" "$HOOK_STATUS" 2>/dev/null; then
-        ok "Already patched (skipped)"
-    else
-        cat >> "$HOOK_STATUS" << 'MONITOREOF'
-
-# --- BEGIN claude-session-monitor ---
-# Session metadata for iTerm2 dashboard daemon (written by setup.sh)
-SESSION_DIR="/tmp/claude-sessions"
-mkdir -p "$SESSION_DIR" 2>/dev/null
-TTY_NAME=$(echo "$TTY" | sed 's|/dev/||; s|/|_|g')
-SESSION_FILE="$SESSION_DIR/$TTY_NAME.json"
-full_cwd=""
-if [ -n "$input" ]; then
-    full_cwd=$(echo "$input" | grep -o '"cwd":"[^"]*"' | head -1 | cut -d'"' -f4)
-fi
-branch=""; worktree=""
-if [ -n "$full_cwd" ]; then
-    if [ -d "$full_cwd/.git" ] || [ -f "$full_cwd/.git" ]; then
-        branch=$(git -C "$full_cwd" rev-parse --abbrev-ref HEAD 2>/dev/null)
-        [ -f "$full_cwd/.git" ] && worktree="$branch"
-    fi
-fi
-case "$1" in
-    reset) rm -f "$SESSION_FILE" 2>/dev/null ;;
-    *) printf '{"tty":"%s","pid":%s,"status":"%s","project":"%s","branch":"%s","worktree":"%s","cwd":"%s","timestamp":%s}\n' \
-        "$TTY" "$PPID" "${1:-unknown}" "${dir:-unknown}" "${branch:-}" "${worktree:-}" "${full_cwd:-}" "$(date +%s)" \
-        > "$SESSION_FILE" 2>/dev/null ;;
-esac
-# --- END claude-session-monitor ---
-MONITOREOF
-        ok "Session monitor patch applied"
-    fi
-
-    # ----------------------------------------------------------
-    # 5. Install iterm2 Python package
-    # ----------------------------------------------------------
-    info "Checking iterm2 Python package..."
-
-    if python3 -c "import iterm2" 2>/dev/null; then
-        ok "iterm2 package already installed"
-    else
-        info "Installing iterm2 package..."
-        pip3 install --user iterm2 2>&1 | tail -1
-        if python3 -c "import iterm2" 2>/dev/null; then
-            ok "iterm2 package installed"
-        else
-            err "Failed to install iterm2 — try: pip3 install --user iterm2"
-            exit 1
-        fi
-    fi
-
-    # ----------------------------------------------------------
-    # 6. Deploy dashboard daemon (embedded)
-    # ----------------------------------------------------------
-    info "Installing dashboard daemon..."
-
-    mkdir -p "$AUTOLAUNCH_DIR"
-    cat > "$DAEMON_DEST" << 'DAEMONEOF'
-#!/usr/bin/env python3
-"""
-Claude Code Session Dashboard for iTerm2
-AutoLaunch daemon — per-session badges with project/branch labels,
-and a status bar dashboard for managing multiple Claude Code sessions.
-"""
-
-import asyncio
-import glob
-import hashlib
-import json
-import os
-import time
-
-import iterm2
-
-SESSION_DIR = "/tmp/claude-sessions"
-SCAN_INTERVAL = 2
-STALE_THRESHOLD = 300
-BADGE_MAX_WIDTH = 0.15
-BADGE_MAX_HEIGHT = 0.1
-
-
-def project_color(name):
-    h = int(hashlib.md5(name.encode()).hexdigest()[:8], 16) % 360
-    s, l = 0.6, 0.45
-    c = (1 - abs(2 * l - 1)) * s
-    x = c * (1 - abs((h / 60) % 2 - 1))
-    m = l - c / 2
-    if h < 60:      r, g, b = c, x, 0
-    elif h < 120:   r, g, b = x, c, 0
-    elif h < 180:   r, g, b = 0, c, x
-    elif h < 240:   r, g, b = 0, x, c
-    elif h < 300:   r, g, b = x, 0, c
-    else:           r, g, b = c, 0, x
-    return iterm2.Color(int((r + m) * 255), int((g + m) * 255), int((b + m) * 255), 180)
-
-
-STATUS_BADGE_COLORS = {
-    "working":   (50, 145, 80),
-    "attention":  (200, 150, 50),
-    "done":      (65, 105, 200),
-}
-
-
-def badge_color_for_status(status):
-    r, g, b = STATUS_BADGE_COLORS.get(status, (128, 128, 128))
-    return iterm2.Color(r, g, b, 160)
-
-
-def read_sessions():
-    sessions = {}
-    now = time.time()
-    for path in glob.glob(os.path.join(SESSION_DIR, "*.json")):
-        try:
-            with open(path) as f:
-                data = json.load(f)
-            if now - data.get("timestamp", 0) > STALE_THRESHOLD:
-                os.unlink(path)
-                continue
-            pid = data.get("pid")
-            if pid:
-                try:
-                    os.kill(int(pid), 0)
-                except ProcessLookupError:
-                    os.unlink(path)
-                    continue
-                except (PermissionError, ValueError, TypeError):
-                    pass
-            sessions[data.get("tty", "")] = data
-        except (json.JSONDecodeError, KeyError, OSError):
+    # Install each target
+    for target in "${targets[@]}"; do
+        local script="$SCRIPT_DIR/$target/setup.sh"
+        if [ ! -f "$script" ]; then
+            err "$target/setup.sh not found at $script"
             continue
-    return sessions
-
-
-def format_age(ts):
-    delta = int(time.time() - ts)
-    if delta < 0:
-        return "now"
-    elif delta < 60:
-        return f"{delta}s ago"
-    elif delta < 3600:
-        return f"{delta // 60}m ago"
-    else:
-        return f"{delta // 3600}h ago"
-
-
-def shorten_path(path, max_len=50):
-    home = os.path.expanduser("~")
-    if path.startswith(home):
-        path = "~" + path[len(home):]
-    if len(path) > max_len:
-        path = "\u2026" + path[-(max_len - 1):]
-    return path
-
-
-def session_summary(sessions):
-    if not sessions:
-        return "No Claude sessions"
-    counts = {"attention": 0, "working": 0, "done": 0}
-    for s in sessions.values():
-        st = s.get("status", "")
-        if st in counts:
-            counts[st] += 1
-    parts = []
-    if counts["working"]:
-        parts.append(f"\u25c9{counts['working']}")
-    if counts["attention"]:
-        parts.append(f"\u23f8{counts['attention']}")
-    if counts["done"]:
-        parts.append(f"\u2713{counts['done']}")
-    total = sum(counts.values())
-    summary = " ".join(parts) if parts else "\u2014"
-    return f"\U0001f916 {total} | {summary}"
-
-
-def dashboard_html(sessions):
-    if not sessions:
-        return (
-            '<html><body style="font-family:-apple-system,sans-serif;padding:32px 24px;'
-            'background:#1a1a2e;color:#888;text-align:center">'
-            '<p style="font-size:40px;margin:0 0 12px 0">\U0001f916</p>'
-            '<p style="font-size:14px;color:#aaa;margin:0 0 6px 0">No active sessions</p>'
-            '<p style="font-size:12px;color:#555">Start Claude Code in a terminal to see sessions here</p>'
-            '</body></html>'
-        )
-    counts = {"working": 0, "attention": 0, "done": 0}
-    for s in sessions.values():
-        st = s.get("status", "")
-        if st in counts:
-            counts[st] += 1
-    total = sum(counts.values())
-    stats_parts = []
-    if counts["working"]:
-        stats_parts.append(
-            f'<span style="background:#1b3a2a;color:#4ade80;padding:2px 8px;border-radius:10px;font-size:11px">'
-            f'\u25c9 {counts["working"]} working</span>'
-        )
-    if counts["attention"]:
-        stats_parts.append(
-            f'<span style="background:#3a2e1b;color:#fbbf24;padding:2px 8px;border-radius:10px;font-size:11px">'
-            f'\u23f8 {counts["attention"]} attention</span>'
-        )
-    if counts["done"]:
-        stats_parts.append(
-            f'<span style="background:#1b2640;color:#60a5fa;padding:2px 8px;border-radius:10px;font-size:11px">'
-            f'\u2713 {counts["done"]} done</span>'
-        )
-    stats_html = " ".join(stats_parts)
-    icon_map = {"working": "\u25c9", "attention": "\u23f8", "done": "\u2713"}
-    color_map = {"working": "#4ade80", "attention": "#fbbf24", "done": "#60a5fa"}
-    border_map = {"working": "#22c55e", "attention": "#f59e0b", "done": "#3b82f6"}
-    bg_map = {"working": "#0f2418", "attention": "#1f1a0f", "done": "#0f1724"}
-    cards = []
-    for s in sorted(sessions.values(), key=lambda x: (
-        {"working": 0, "attention": 1, "done": 2}.get(x.get("status", ""), 3),
-        x.get("project", ""),
-    )):
-        status = s.get("status", "")
-        icon = icon_map.get(status, "?")
-        color = color_map.get(status, "#888")
-        border = border_map.get(status, "#444")
-        bg = bg_map.get(status, "#1e1e1e")
-        project = s.get("project", "?")
-        branch = s.get("worktree") or s.get("branch") or ""
-        cwd = s.get("cwd", "")
-        tty = os.path.basename(s.get("tty", ""))
-        ts = s.get("timestamp", 0)
-        age = format_age(ts) if ts else "?"
-        short_cwd = shorten_path(cwd) if cwd else ""
-        worktree_badge = ""
-        if s.get("worktree"):
-            worktree_badge = (
-                ' <span style="background:#2a2040;color:#a78bfa;font-size:9px;'
-                'padding:1px 5px;border-radius:3px;margin-left:4px;vertical-align:middle'
-                '">worktree</span>'
-            )
-        meta_items = []
-        if branch:
-            meta_items.append(f'<span style="color:#aaa">\U0001f33f {branch}{worktree_badge}</span>')
-        if short_cwd:
-            meta_items.append(f'<span style="color:#666">\U0001f4c2 {short_cwd}</span>')
-        meta_html = '<span style="margin:0 6px;color:#333">\u2502</span>'.join(meta_items)
-        cards.append(
-            f'<div style="background:{bg};border-radius:8px;padding:10px 12px;margin-bottom:6px;'
-            f'border-left:3px solid {border}">'
-            f'<div style="display:flex;align-items:center;justify-content:space-between">'
-            f'<span style="font-size:13px;font-weight:600;color:#fff">'
-            f'<span style="color:{color}">{icon}</span> {project}</span>'
-            f'<span style="font-size:10px;color:#555">{tty} \u00b7 {age}</span>'
-            f'</div>'
-            f'<div style="margin-top:5px;font-size:11px;line-height:1.4">{meta_html}</div>'
-            f'</div>'
-        )
-    return (
-        '<html><head><style>'
-        '*{box-sizing:border-box}'
-        'body{font-family:-apple-system,BlinkMacSystemFont,sans-serif;margin:0;padding:0;'
-        'background:#1a1a2e;color:#e0e0e0}'
-        '::-webkit-scrollbar{width:6px}'
-        '::-webkit-scrollbar-track{background:#1a1a2e}'
-        '::-webkit-scrollbar-thumb{background:#333;border-radius:3px}'
-        '</style></head><body>'
-        '<div style="background:linear-gradient(135deg,#16213e,#1a1a2e);'
-        'padding:14px 16px;border-bottom:1px solid #2a2a4a">'
-        '<div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:8px">'
-        '<span style="font-size:14px;font-weight:600;color:#fff">'
-        '\U0001f916 Claude Code Dashboard</span>'
-        f'<span style="font-size:11px;color:#666">{total} session{"s" if total != 1 else ""}</span>'
-        '</div>'
-        f'<div style="display:flex;gap:6px;flex-wrap:wrap">{stats_html}</div>'
-        '</div>'
-        f'<div style="padding:8px 10px;overflow-y:auto;max-height:320px">{"".join(cards)}</div>'
-        '</body></html>'
-    )
-
-
-async def main(connection):
-    app = await iterm2.async_get_app(connection)
-    applied_state = {}
-    component = iterm2.StatusBarComponent(
-        short_description="Claude Sessions",
-        detailed_description="Dashboard for all active Claude Code sessions",
-        knobs=[],
-        exemplar="\U0001f916 3 | \u25c92 \u23f81",
-        update_cadence=SCAN_INTERVAL,
-        identifier="com.calmp.claude-session-monitor",
-    )
-
-    @iterm2.StatusBarRPC
-    async def statusbar_coro(knobs):
-        return session_summary(read_sessions())
-
-    @iterm2.RPC
-    async def onclick(session_id):
-        html = dashboard_html(read_sessions())
-        await component.async_open_popover(
-            session_id, html, iterm2.util.Size(520, 400)
-        )
-
-    await component.async_register(connection, statusbar_coro, onclick=onclick)
-
-    while True:
-        await asyncio.sleep(SCAN_INTERVAL)
-        try:
-            app = await iterm2.async_get_app(connection)
-            sessions_data = read_sessions()
-            if not sessions_data:
-                continue
-            tty_map = {}
-            for window in app.terminal_windows:
-                for tab in window.tabs:
-                    for session in tab.sessions:
-                        try:
-                            tty = await session.async_get_variable("tty")
-                            if tty:
-                                tty_map[tty] = session
-                        except Exception:
-                            continue
-            for tty, data in sessions_data.items():
-                session = tty_map.get(tty)
-                if not session:
-                    continue
-                project = data.get("project", "unknown")
-                status = data.get("status", "")
-                branch = data.get("branch", "")
-                worktree = data.get("worktree", "")
-                sid = session.session_id
-                current = {"project": project, "status": status, "branch": branch}
-                if applied_state.get(sid) == current:
-                    continue
-                applied_state[sid] = current
-                lines = [f"\U0001f4c2 {project}"]
-                if worktree:
-                    lines.append(f"\U0001f33f {worktree} \u2934")
-                elif branch:
-                    lines.append(f"\U0001f33f {branch}")
-                badge = "\n".join(lines)
-                change = iterm2.LocalWriteOnlyProfile()
-                change.set_badge_text(badge)
-                change.set_badge_color(badge_color_for_status(status))
-                try:
-                    change.set_badge_max_width(BADGE_MAX_WIDTH)
-                    change.set_badge_max_height(BADGE_MAX_HEIGHT)
-                except AttributeError:
-                    pass
-                await session.async_set_profile_properties(change)
-        except Exception:
-            pass
-
-
-iterm2.run_forever(main)
-DAEMONEOF
-    chmod +x "$DAEMON_DEST"
-    ok "Dashboard daemon: $DAEMON_DEST"
-
-    # ----------------------------------------------------------
-    # 7. Configure iTerm2 plist (one pass — profiles + API)
-    # ----------------------------------------------------------
-    info "Configuring iTerm2..."
-
-    PB="/usr/libexec/PlistBuddy"
-
-    # Profile settings
-    count=0
-    while "$PB" -c "Print :New\ Bookmarks:${count}:Guid" "$ITERM_PLIST" &>/dev/null; do
-        count=$((count + 1))
+        fi
+        info "Installing $target..."
+        bash "$script" install "${extra_args[@]+"${extra_args[@]}"}"
+        echo ""
     done
 
-    if [ "$count" -gt 0 ]; then
-        for i in $(seq 0 $((count - 1))); do
-            p=":New Bookmarks:${i}"
+    # Summary
+    echo "  ============================================"
+    echo "  All done!"
+    echo "  ============================================"
+    echo ""
 
-            # Tab title: Session Name + Job Name
-            "$PB" -c "Set '${p}:Title Components' 3" "$ITERM_PLIST" 2>/dev/null ||
-            "$PB" -c "Add '${p}:Title Components' integer 3" "$ITERM_PLIST" 2>/dev/null
+    # Restart prompt
+    local has_iterm=0
+    for target in "${targets[@]}"; do
+        [[ "$target" == iterm-* ]] && has_iterm=1
+    done
 
-            "$PB" -c "Set '${p}:Allow Title Setting' true" "$ITERM_PLIST" 2>/dev/null ||
-            "$PB" -c "Add '${p}:Allow Title Setting' bool true" "$ITERM_PLIST" 2>/dev/null
-
-            # Bell — all disabled to avoid screen flash / icons
-            "$PB" -c "Set '${p}:Visual Bell' false" "$ITERM_PLIST" 2>/dev/null ||
-            "$PB" -c "Add '${p}:Visual Bell' bool false" "$ITERM_PLIST" 2>/dev/null
-
-            "$PB" -c "Set '${p}:Flashing Bell' false" "$ITERM_PLIST" 2>/dev/null ||
-            "$PB" -c "Add '${p}:Flashing Bell' bool false" "$ITERM_PLIST" 2>/dev/null
-
-            "$PB" -c "Set '${p}:Silence Bell' true" "$ITERM_PLIST" 2>/dev/null ||
-            "$PB" -c "Add '${p}:Silence Bell' bool true" "$ITERM_PLIST" 2>/dev/null
-
-            "$PB" -c "Set '${p}:BM Growl' false" "$ITERM_PLIST" 2>/dev/null ||
-            "$PB" -c "Add '${p}:BM Growl' bool false" "$ITERM_PLIST" 2>/dev/null
+    if [ "$has_iterm" -eq 1 ] && [ -t 0 ]; then
+        # Detect language from extra_args
+        local lang="en"
+        for i in "${!extra_args[@]}"; do
+            if [ "${extra_args[$i]}" = "--lang" ]; then
+                lang="${extra_args[$((i+1))]:-en}"
+            fi
         done
-    fi
 
-    # Enable Python API
-    "$PB" -c "Set :EnableAPIServer true" "$ITERM_PLIST" 2>/dev/null ||
-    "$PB" -c "Add :EnableAPIServer bool true" "$ITERM_PLIST" 2>/dev/null
-
-    ok "iTerm2 configured (${count} profile(s) + Python API)"
-
-    # ----------------------------------------------------------
-    # 8. Update settings.json (one consolidated call)
-    # ----------------------------------------------------------
-    info "Updating Claude Code settings..."
-
-    [ -f "$SETTINGS_FILE" ] || echo '{}' > "$SETTINGS_FILE"
-
-    python3 << 'PYEOF'
-import json, os
-
-path = os.path.expanduser("~/.claude/settings.json")
-with open(path) as f:
-    settings = json.load(f)
-
-hooks = settings.setdefault("hooks", {})
-STATUS = "~/.claude/hooks/iterm-status.sh"
-APPROVE = "~/.claude/hooks/auto-approve.sh"
-
-def entry(matcher, cmd):
-    return {"matcher": matcher, "hooks": [{"type": "command", "command": cmd}]}
-
-def is_ours(e):
-    s = json.dumps(e)
-    return "iterm-status.sh" in s or "auto-approve.sh" in s
-
-# Dedicated hooks (replace entirely)
-hooks["Notification"] = [entry("*", STATUS)]
-hooks["UserPromptSubmit"] = [entry("*", f"{STATUS} working")]
-hooks["Stop"] = [entry("*", f"{STATUS} done")]
-
-# PreToolUse: keep third-party entries, add ours
-pre = [h for h in hooks.get("PreToolUse", []) if not is_ours(h)]
-pre.insert(0, entry("Bash", APPROVE))
-pre.insert(0, entry("AskUserQuestion", f"{STATUS} attention"))
-hooks["PreToolUse"] = pre
-
-# PostToolUse: keep third-party entries, add ours
-post = [h for h in hooks.get("PostToolUse", []) if not is_ours(h)]
-post.insert(0, entry("AskUserQuestion", f"{STATUS} working"))
-hooks["PostToolUse"] = post
-
-# Env
-settings.setdefault("env", {})["CLAUDE_CODE_DISABLE_TERMINAL_TITLE"] = "1"
-
-with open(path, "w") as f:
-    json.dump(settings, f, indent=2, ensure_ascii=False)
-    f.write("\n")
-PYEOF
-
-    ok "Settings updated: $SETTINGS_FILE"
-
-    # ----------------------------------------------------------
-    # 9. Create session directory & cleanup
-    # ----------------------------------------------------------
-    mkdir -p "$SESSION_DIR"
-    rm -f /tmp/iterm-status.log /tmp/iterm-tools.log 2>/dev/null
-
-    # ----------------------------------------------------------
-    # 10. Summary
-    # ----------------------------------------------------------
-    echo ""
-    echo "  ============================================"
-    echo "  ✅ All features installed! (lang=$lang)"
-    echo "  ============================================"
-    echo ""
-    if [ "$lang" = "zh" ]; then
-        echo "  已安装："
-        echo "    ✓ Bash 命令自动批准"
-        echo "    ✓ Tab 状态指示器（松绿=执行中 / 琥珀=待确认 / 蓝色=等待输入）"
-        echo "    ✓ Session Dashboard（📂 项目名 / 🌿 分支名 水印 + 状态栏概览）"
-    else
-        echo "  Installed:"
-        echo "    ✓ Bash auto-approve"
-        echo "    ✓ Tab status indicator (Green=Working / Amber=Attention / Blue=Ready)"
-        echo "    ✓ Session Dashboard (📂 project / 🌿 branch badge + status bar overview)"
-    fi
-    echo ""
-
-    # ----------------------------------------------------------
-    # 11. Restart iTerm2
-    # ----------------------------------------------------------
-    if [ -t 0 ]; then
         if [ "$lang" = "zh" ]; then
             printf '  需要重启 iTerm2 使配置生效。现在重启？(y/n) '
         else
-            printf '  iTerm2 needs to restart for changes to take effect. Restart now? (y/n) '
+            printf '  iTerm2 needs to restart. Restart now? (y/n) '
         fi
         read -r answer
         if [[ "$answer" =~ ^[Yy] ]]; then
             echo ""
-            if [ "$lang" = "zh" ]; then
-                info "正在重启 iTerm2..."
-            else
-                info "Restarting iTerm2..."
-            fi
+            info "Restarting iTerm2..."
             (sleep 1 && open -a iTerm2) &
             osascript -e 'tell application "iTerm2" to quit' 2>/dev/null || true
             exit 0
         fi
-    fi
 
-    echo ""
-    if [ "$lang" = "zh" ]; then
-        echo "  ⚠️  请手动重启 iTerm2 使配置生效"
         echo ""
-        echo "  首次使用需手动操作（仅一次）："
-        echo "    1. 重启后如果弹出 Python API 授权提示 → 点允许"
-        echo "    2. 添加状态栏组件："
-        echo "       偏好设置 > Profiles > Session > 启用 Status bar"
-        echo "       > Configure Status Bar > 将 'Claude Sessions' 拖入激活区域"
-    else
-        echo "  ⚠️  Please restart iTerm2 manually"
+        if [ "$lang" = "zh" ]; then
+            echo "  ⚠️  请手动重启 iTerm2"
+            echo ""
+            echo "  首次使用需手动操作（仅一次）："
+            echo "    1. 重启后如果弹出 Python API 授权提示 → 点允许"
+            echo "    2. 添加状态栏组件："
+            echo "       偏好设置 > Profiles > Session > 启用 Status bar"
+            echo "       > Configure Status Bar > 将 'Claude Sessions' 拖入激活区域"
+        else
+            echo "  ⚠️  Please restart iTerm2 manually"
+            echo ""
+            echo "  First-time manual steps (one-time only):"
+            echo "    1. After restart, allow Python API connection if prompted"
+            echo "    2. Add status bar component:"
+            echo "       Preferences > Profiles > Session > Enable Status bar"
+            echo "       > Configure Status Bar > drag 'Claude Sessions' to active area"
+        fi
         echo ""
-        echo "  First-time manual steps (one-time only):"
-        echo "    1. After restart, allow Python API connection if prompted"
-        echo "    2. Add status bar component:"
-        echo "       Preferences > Profiles > Session > Enable Status bar"
-        echo "       > Configure Status Bar > drag 'Claude Sessions' to active area"
     fi
-    echo ""
 }
 
 # ===========================================================
 #  UNINSTALL
 # ===========================================================
 do_uninstall() {
-    echo ""
-    echo "  Removing all Claude Code × iTerm2 features..."
-    echo ""
+    local targets=()
 
-    # 1. Remove hook scripts
-    info "Removing hook scripts..."
-    rm -f "$HOOK_APPROVE" "$HOOK_STATUS"
-    rm -f /tmp/iterm-tty-* /tmp/iterm-status.log /tmp/iterm-tools.log 2>/dev/null
-    ok "Hook scripts removed"
+    while [ $# -gt 0 ]; do
+        case "$1" in
+            -*)  err "Unknown option: $1"; usage ;;
+            *)
+                if is_valid_feature "$1"; then
+                    targets+=("$1")
+                else
+                    err "Unknown feature: $1"; exit 1
+                fi
+                shift ;;
+        esac
+    done
 
-    # 2. Remove daemon
-    info "Removing dashboard daemon..."
-    if [ -f "$DAEMON_DEST" ]; then
-        rm -f "$DAEMON_DEST"
-        ok "Daemon removed"
-    else
-        ok "Daemon not found (already removed)"
+    if [ ${#targets[@]} -eq 0 ]; then
+        targets=("${FEATURES[@]}")
     fi
 
-    # 3. Clean session files
-    info "Cleaning session files..."
-    rm -rf "$SESSION_DIR" 2>/dev/null
-    ok "Session files removed"
-
-    # 4. Clean settings.json
-    info "Cleaning settings.json..."
-    if [ -f "$SETTINGS_FILE" ]; then
-        python3 << 'PYEOF'
-import json, os
-
-path = os.path.expanduser("~/.claude/settings.json")
-with open(path) as f:
-    settings = json.load(f)
-
-hooks = settings.get("hooks", {})
-
-def is_ours(entry):
-    s = json.dumps(entry)
-    return "iterm-status.sh" in s or "auto-approve.sh" in s
-
-# Remove dedicated hook arrays
-for key in ["Notification", "UserPromptSubmit", "Stop"]:
-    entries = hooks.get(key, [])
-    entries = [h for h in entries if not is_ours(h)]
-    if entries:
-        hooks[key] = entries
-    else:
-        hooks.pop(key, None)
-
-# Remove our entries from shared arrays
-for key in ["PreToolUse", "PostToolUse"]:
-    entries = hooks.get(key, [])
-    entries = [h for h in entries if not is_ours(h)]
-    if entries:
-        hooks[key] = entries
-    else:
-        hooks.pop(key, None)
-
-# Remove env var
-env = settings.get("env", {})
-env.pop("CLAUDE_CODE_DISABLE_TERMINAL_TITLE", None)
-if not env:
-    settings.pop("env", None)
-
-if not hooks:
-    settings.pop("hooks", None)
-
-with open(path, "w") as f:
-    json.dump(settings, f, indent=2, ensure_ascii=False)
-    f.write("\n")
-PYEOF
-        ok "Settings cleaned"
-    fi
-
-    # 5. Summary
     echo ""
+    echo "  Removing features..."
+    echo ""
+
+    # Uninstall in reverse order (monitor before status)
+    for (( i=${#targets[@]}-1; i>=0; i-- )); do
+        local target="${targets[$i]}"
+        local script="$SCRIPT_DIR/$target/setup.sh"
+        if [ ! -f "$script" ]; then
+            warn "$target/setup.sh not found (skipped)"
+            continue
+        fi
+        info "Uninstalling $target..."
+        bash "$script" uninstall
+        echo ""
+    done
+
     echo "  ============================================"
-    echo "  All features removed!"
+    echo "  Done! Please restart iTerm2."
     echo "  ============================================"
-    echo ""
-    echo "  Not removed (manual cleanup if desired):"
-    echo "    • iterm2 pip package: pip3 uninstall iterm2"
-    echo "    • iTerm2 plist changes (harmless)"
-    echo ""
-    echo "  Please restart iTerm2 to complete removal."
     echo ""
 }
 
@@ -807,67 +239,14 @@ do_status() {
     echo "  ============================"
     echo ""
 
-    # Auto-approve
-    if [ -f "$HOOK_APPROVE" ] && [ -x "$HOOK_APPROVE" ]; then
-        printf '  Auto-approve:    \033[1;32m✓ installed\033[0m\n'
-    else
-        printf '  Auto-approve:    \033[1;31m✗ not installed\033[0m\n'
-    fi
-
-    # Status hook
-    if [ -f "$HOOK_STATUS" ] && [ -x "$HOOK_STATUS" ]; then
-        lang=$(grep -o 'lang=[a-z]*' "$HOOK_STATUS" | head -1 | cut -d= -f2)
-        printf '  Status hook:     \033[1;32m✓ installed\033[0m (lang=%s)\n' "${lang:-en}"
-    else
-        printf '  Status hook:     \033[1;31m✗ not installed\033[0m\n'
-    fi
-
-    # Session monitor patch
-    if [ -f "$HOOK_STATUS" ] && grep -q "$SENTINEL_BEGIN" "$HOOK_STATUS" 2>/dev/null; then
-        printf '  Session monitor: \033[1;32m✓ patched\033[0m\n'
-    else
-        printf '  Session monitor: \033[1;31m✗ not patched\033[0m\n'
-    fi
-
-    # Dashboard daemon
-    if [ -f "$DAEMON_DEST" ]; then
-        printf '  Dashboard:       \033[1;32m✓ installed\033[0m\n'
-    else
-        printf '  Dashboard:       \033[1;31m✗ not installed\033[0m\n'
-    fi
-
-    # Python package
-    if python3 -c "import iterm2" 2>/dev/null; then
-        ver=$(python3 -c "import iterm2; print(iterm2.__version__)" 2>/dev/null || echo "?")
-        printf '  iterm2 package:  \033[1;32m✓ v%s\033[0m\n' "$ver"
-    else
-        printf '  iterm2 package:  \033[1;31m✗ not installed\033[0m\n'
-    fi
-
-    # Python API
-    PB="/usr/libexec/PlistBuddy"
-    api=$("$PB" -c "Print :EnableAPIServer" "$ITERM_PLIST" 2>/dev/null || echo "")
-    if [ "$api" = "true" ]; then
-        printf '  iTerm2 API:      \033[1;32m✓ enabled\033[0m\n'
-    else
-        printf '  iTerm2 API:      \033[1;31m✗ not enabled\033[0m\n'
-    fi
-
-    # Settings
-    if [ -f "$SETTINGS_FILE" ] && grep -q "iterm-status.sh" "$SETTINGS_FILE" 2>/dev/null; then
-        printf '  Settings:        \033[1;32m✓ configured\033[0m\n'
-    else
-        printf '  Settings:        \033[1;31m✗ not configured\033[0m\n'
-    fi
-
-    # Active sessions
-    count=0
-    if [ -d "$SESSION_DIR" ]; then
-        count=$(find "$SESSION_DIR" -name "*.json" 2>/dev/null | wc -l | tr -d ' ')
-    fi
-    printf '  Active sessions: %s\n' "$count"
-
-    echo ""
+    for target in "${FEATURES[@]}"; do
+        local script="$SCRIPT_DIR/$target/setup.sh"
+        if [ -f "$script" ]; then
+            bash "$script" status
+        else
+            printf '  %s: \033[1;31mnot found\033[0m\n' "$target"
+        fi
+    done
 }
 
 # ===========================================================
@@ -877,24 +256,8 @@ cmd="${1:-}"
 shift || true
 
 case "$cmd" in
-    install)
-        lang="en"
-        while [ $# -gt 0 ]; do
-            case "$1" in
-                --lang) lang="${2:-en}"; shift 2 ;;
-                --lang=*) lang="${1#--lang=}"; shift ;;
-                *) err "Unknown option: $1"; usage ;;
-            esac
-        done
-        do_install "$lang"
-        ;;
-    uninstall)
-        do_uninstall
-        ;;
-    status)
-        do_status
-        ;;
-    *)
-        usage
-        ;;
+    install)   do_install "$@" ;;
+    uninstall) do_uninstall "$@" ;;
+    status)    do_status ;;
+    *)         usage ;;
 esac

@@ -7,12 +7,12 @@ set -euo pipefail
 #  Adds per-project badges, branch info, and a status bar
 #  overview widget for managing multiple Claude Code sessions.
 #
-#  Requires iterm-status-setup.sh to be installed first.
+#  Requires iterm-status to be installed first.
 #
 #  Usage:
-#    ./iterm-monitor-setup.sh install              # Install
-#    ./iterm-monitor-setup.sh uninstall            # Remove all changes
-#    ./iterm-monitor-setup.sh status               # Show current state
+#    ./setup.sh install              # Install
+#    ./setup.sh uninstall            # Remove all changes
+#    ./setup.sh status               # Show current state
 # ============================================================
 
 CLAUDE_DIR="$HOME/.claude"
@@ -27,7 +27,7 @@ SENTINEL_END="# --- END claude-session-monitor ---"
 
 # Where is this script located? (for finding the daemon source)
 SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
-DAEMON_SRC="$SCRIPT_DIR/iterm-monitor-daemon.py"
+DAEMON_SRC="$SCRIPT_DIR/daemon.py"
 
 info()  { printf '\033[1;34m[INFO]\033[0m  %s\n' "$1"; }
 ok()    { printf '\033[1;32m[OK]\033[0m    %s\n' "$1"; }
@@ -71,12 +71,18 @@ do_install() {
     fi
 
     if [ ! -f "$HOOK_SCRIPT" ]; then
-        err "iterm-status.sh not found — run iterm-status-setup.sh install first"
-        exit 1
+        ITERM_STATUS_SETUP="$SCRIPT_DIR/../iterm-status/setup.sh"
+        if [ -f "$ITERM_STATUS_SETUP" ]; then
+            info "iterm-status not installed — auto-installing..."
+            bash "$ITERM_STATUS_SETUP" install "$@"
+        else
+            err "iterm-status.sh not found — run iterm-status/setup.sh install first"
+            exit 1
+        fi
     fi
 
     if [ ! -f "$DAEMON_SRC" ]; then
-        err "iterm-monitor-daemon.py not found at $DAEMON_SRC"
+        err "daemon.py not found at $DAEMON_SRC"
         exit 1
     fi
 
@@ -119,7 +125,7 @@ TTY_NAME=$(echo "$TTY" | sed 's|/dev/||; s|/|_|g')
 SESSION_FILE="$SESSION_DIR/$TTY_NAME.json"
 full_cwd=""
 if [ -n "$input" ]; then
-    full_cwd=$(echo "$input" | grep -o '"cwd":"[^"]*"' | head -1 | cut -d'"' -f4)
+    full_cwd=$(echo "$input" | grep -oE '"cwd" *: *"[^"]*"' | head -1 | sed 's/.*: *"//;s/"$//')
 fi
 branch=""; worktree=""
 if [ -n "$full_cwd" ]; then
@@ -161,7 +167,7 @@ HOOKEOF
         ok "Python API already enabled"
     else
         "$PB" -c "Set :EnableAPIServer true" "$ITERM_PLIST" 2>/dev/null ||
-        "$PB" -c "Add :EnableAPIServer bool true" "$ITERM_PLIST" 2>/dev/null
+        "$PB" -c "Add :EnableAPIServer bool true" "$ITERM_PLIST" 2>/dev/null || true
         ok "Python API enabled in iTerm2 preferences"
     fi
 

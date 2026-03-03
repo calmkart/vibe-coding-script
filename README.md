@@ -8,39 +8,37 @@ A collection of utility scripts for various vibe coding tools.
 
 ```
 vibe-coding-script/
-├── claude-code/          # Claude Code related scripts
-│   ├── setup.sh          # ⭐ One-click install (recommended)
-│   ├── auto-approve-setup.sh
-│   ├── iterm-status-setup.sh
-│   ├── iterm-monitor-setup.sh
-│   └── iterm-monitor-daemon.py
-├── README.md             # English documentation
-└── README_CN.md          # Chinese documentation
+├── claude-code/
+│   ├── setup.sh              # ⭐ One-click install
+│   ├── auto-approve/         # Bash auto-approve
+│   ├── iterm-status/         # Tab color & title indicator
+│   └── iterm-monitor/        # Session dashboard
+├── README.md
+└── README_CN.md
 ```
 
 ## Included Tools
 
 ### Claude Code
 
-Located in the `claude-code/` directory. One-click setup:
-
 ```bash
 git clone https://github.com/calmkart/vibe-coding-script.git
 cd vibe-coding-script/claude-code
-./setup.sh install --lang zh    # Chinese
-./setup.sh install              # English
+./setup.sh install --lang zh    # Install all (Chinese)
+./setup.sh install              # Install all (English)
+./setup.sh install auto-approve # Install specific feature
 ```
 
-Installs all features at once:
-- **Auto-approve** — Bash commands run without manual confirmation
-- **Tab indicator** — iTerm2 tab color & title changes by Claude Code status
-- **Session dashboard** — per-project badges, status bar overview, rich popover
+Features:
+- **auto-approve** — Bash commands run without manual confirmation
+- **iterm-status** — iTerm2 tab color & title changes by Claude Code status
+- **iterm-monitor** — Per-project badges, status bar overview, rich dashboard popover
 
 See [claude-code/README.md](./claude-code/README.md) for details.
 
 ## Contributing
 
-Contributions of new vibe coding tool scripts are welcome. Please follow the existing directory structure and provide comprehensive documentation.
+Contributions welcome. Please follow the existing directory structure.
 
 ## License
 
