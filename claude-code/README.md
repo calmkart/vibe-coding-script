@@ -4,12 +4,47 @@ English | [中文](./README_CN.md)
 
 A collection of configuration scripts for the Claude Code CLI tool.
 
-## Scripts
+## Quick Start (Recommended)
+
+One command to install everything — auto-approve, tab status, session dashboard:
+
+```bash
+# Clone and install (English)
+git clone https://github.com/calmkart/vibe-coding-script.git
+cd vibe-coding-script/claude-code
+./setup.sh install
+
+# Chinese labels
+./setup.sh install --lang zh
+
+# Check status
+./setup.sh status
+
+# Uninstall everything
+./setup.sh uninstall
+```
+
+What gets installed:
+
+| Feature | Description |
+|---|---|
+| **Auto-approve** | Bash commands run without manual confirmation |
+| **Tab indicator** | Green (Working) / Amber (Attention) / Blue (Ready) tab color + title |
+| **Session dashboard** | `📂 project` / `🌿 branch` badge + status bar popover for all sessions |
+
+After install, restart iTerm2. First-time only: allow Python API dialog, then drag "Claude Sessions" to the status bar.
+
+---
+
+## Advanced (Individual Scripts)
+
+For granular control, each feature can be installed separately:
 
 | Script | Description |
 |---|---|
 | [auto-approve-setup.sh](#auto-approve-setupsh) | Auto-approve Bash commands without manual confirmation |
 | [iterm-status-setup.sh](#iterm-status-setupsh) | iTerm2 tab color & title indicator for Claude Code status |
+| [iterm-monitor-setup.sh](#iterm-monitor-setupsh) | Multi-session dashboard — compact badges, rich dashboard popover, status bar overview |
 
 ---
 
@@ -48,38 +83,6 @@ chmod +x auto-approve-setup.sh
 ./auto-approve-setup.sh
 ```
 
-#### What It Does
-
-After running the script:
-
-1. Creates `~/.claude/hooks/` directory
-2. Generates `auto-approve.sh` hook script
-3. Adds PreToolUse hook configuration to `settings.json`
-
-Once configured, Claude Code will automatically approve Bash commands without requiring manual confirmation.
-
-#### Configuration Details
-
-The script adds the following configuration to `~/.claude/settings.json`:
-
-```json
-{
-  "hooks": {
-    "PreToolUse": [
-      {
-        "matcher": "Bash",
-        "hooks": [
-          {
-            "type": "command",
-            "command": "~/.claude/hooks/auto-approve.sh"
-          }
-        ]
-      }
-    ]
-  }
-}
-```
-
 #### Notes
 
 - This configuration auto-approves all Bash commands - use only in trusted environments
@@ -100,96 +103,60 @@ Adds a visual status indicator to your iTerm2 tab — color and title change bas
 | **Action Needed** | Amber | `⏸ Action Needed · project-name` | Claude asks a question |
 | **Ready** | Blue | `✓ Ready · project-name` | Claude finishes responding |
 
-#### How It Works
-
-```
-User sends message  → UserPromptSubmit  → 🟢 Green (Working)
-Claude asks user    → PreToolUse        → 🟡 Amber (Action Needed)
-User answers        → PostToolUse       → 🟢 Green (Working)
-Claude finishes     → Stop              → 🔵 Blue  (Ready)
-```
-
 #### Requirements
 
 - **macOS** with iTerm2
 - **Claude Code** CLI installed
 - **Python 3** (pre-installed on macOS)
 
-No additional dependencies required.
-
 #### Usage
 
 ```bash
-# Install (English labels, default)
-curl -fsSL https://raw.githubusercontent.com/calmkart/vibe-coding-script/main/claude-code/iterm-status-setup.sh | bash -s install
-
-# Install with Chinese labels
-curl -fsSL https://raw.githubusercontent.com/calmkart/vibe-coding-script/main/claude-code/iterm-status-setup.sh | bash -s install --lang zh
-
-# Uninstall (cleanly removes all changes)
-curl -fsSL https://raw.githubusercontent.com/calmkart/vibe-coding-script/main/claude-code/iterm-status-setup.sh | bash -s uninstall
-
-# Or clone the repo
-git clone https://github.com/calmkart/vibe-coding-script.git
-cd vibe-coding-script/claude-code
 ./iterm-status-setup.sh install              # English
 ./iterm-status-setup.sh install --lang zh    # Chinese
 ./iterm-status-setup.sh uninstall            # Remove
 ./iterm-status-setup.sh status               # Check state
 ```
 
-#### Commands
-
-| Command | Description |
-|---|---|
-| `install` | Install with English labels (default) |
-| `install --lang zh` | Install with Chinese labels |
-| `uninstall` | Remove hook script, clean settings.json, remove env var |
-| `status` | Show whether installed, current language |
-
-#### What It Does
-
-**Install:**
-
-1. **Configures iTerm2** (via PlistBuddy) — enables Visual Bell, Flashing Bell, and sets tab title to show Session Name + Job Name for all profiles
-2. **Creates hook script** `~/.claude/hooks/iterm-status.sh` — handles tab color and title changes via iTerm2 escape sequences, with TTY caching for performance
-3. **Updates `~/.claude/settings.json`** — adds hooks for `UserPromptSubmit`, `PreToolUse`, `PostToolUse`, `Stop`, and `Notification` events; sets `CLAUDE_CODE_DISABLE_TERMINAL_TITLE` to prevent Claude Code from overriding tab titles
-
-**Uninstall:**
-
-1. Removes `~/.claude/hooks/iterm-status.sh`
-2. Removes all `iterm-status.sh` hook entries from `settings.json`
-3. Removes `CLAUDE_CODE_DISABLE_TERMINAL_TITLE` env var
-4. Cleans up temp files
-5. iTerm2 plist is left untouched (harmless settings)
-
 #### Language
-
-Language is set at install time and baked into the hook script. To switch, re-run install:
-
-```bash
-./iterm-status-setup.sh install --lang zh    # Switch to Chinese
-./iterm-status-setup.sh install              # Switch back to English
-```
 
 | Language | Working | Action Needed | Ready |
 |---|---|---|---|
 | `en` (default) | `◉ Working` | `⏸ Action Needed` | `✓ Ready` |
 | `zh` | `◉ 执行中` | `⏸ 待确认` | `✓ 等待输入` |
 
-#### Testing
+---
 
-After setup, restart iTerm2 and run these directly in your shell:
+### iterm-monitor-setup.sh
+
+Adds an iTerm2 Python API daemon for managing multiple Claude Code sessions — compact labeled badges, a rich dashboard popover, and a status bar overview widget.
+
+#### Demo
+
+| Feature | Description |
+|---|---|
+| **Badge** | `📂 project-name` / `🌿 branch` — compact labeled watermark (15% width, won't obscure content) |
+| **Worktree** | Worktree branch shown with `⤴` suffix to distinguish from main repo |
+| **Dashboard** | Click status bar for a rich dark-mode dashboard — session cards with project, branch, directory, TTY, age |
+| **Status Bar** | `🤖 3 \| ◉2 ⏸1 ✓1` — total sessions + count by state |
+
+#### Requirements
+
+- **macOS** with iTerm2
+- **iterm-status-setup.sh** installed first (prerequisite)
+- **Python 3** + **iterm2** pip package (installed automatically)
+
+#### Usage
 
 ```bash
-echo '{}' | ~/.claude/hooks/iterm-status.sh working    # green tab
-echo '{}' | ~/.claude/hooks/iterm-status.sh attention  # amber tab
-echo '{}' | ~/.claude/hooks/iterm-status.sh done       # blue tab
-echo '{}' | ~/.claude/hooks/iterm-status.sh reset      # restore default
+./iterm-monitor-setup.sh install
+./iterm-monitor-setup.sh uninstall
+./iterm-monitor-setup.sh status
 ```
 
 #### Notes
 
-- The script is idempotent — safe to run multiple times
-- Merges with existing `settings.json` without overwriting other hooks or settings
-- Restart iTerm2 after first setup to apply plist changes
+- Requires `iterm-status-setup.sh` to be installed first
+- Badge is sized to 15% width × 10% height — visible but won't obscure terminal content
+- Stale sessions are automatically cleaned up (>5min old or dead PID)
+- Dashboard sorts sessions by status (working → attention → done) for quick scanning

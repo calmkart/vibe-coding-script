@@ -94,17 +94,18 @@ do_install() {
                 "$PB" -c "Set '${p}:Allow Title Setting' true" "$ITERM_PLIST" 2>/dev/null ||
                 "$PB" -c "Add '${p}:Allow Title Setting' bool true" "$ITERM_PLIST" 2>/dev/null
 
-                "$PB" -c "Set '${p}:Visual Bell' true" "$ITERM_PLIST" 2>/dev/null ||
-                "$PB" -c "Add '${p}:Visual Bell' bool true" "$ITERM_PLIST" 2>/dev/null
+                # Silence bell to avoid visual flash / screen icons
+                "$PB" -c "Set '${p}:Visual Bell' false" "$ITERM_PLIST" 2>/dev/null ||
+                "$PB" -c "Add '${p}:Visual Bell' bool false" "$ITERM_PLIST" 2>/dev/null
 
-                "$PB" -c "Set '${p}:Flashing Bell' true" "$ITERM_PLIST" 2>/dev/null ||
-                "$PB" -c "Add '${p}:Flashing Bell' bool true" "$ITERM_PLIST" 2>/dev/null
+                "$PB" -c "Set '${p}:Flashing Bell' false" "$ITERM_PLIST" 2>/dev/null ||
+                "$PB" -c "Add '${p}:Flashing Bell' bool false" "$ITERM_PLIST" 2>/dev/null
 
-                "$PB" -c "Set '${p}:Silence Bell' false" "$ITERM_PLIST" 2>/dev/null ||
-                "$PB" -c "Add '${p}:Silence Bell' bool false" "$ITERM_PLIST" 2>/dev/null
+                "$PB" -c "Set '${p}:Silence Bell' true" "$ITERM_PLIST" 2>/dev/null ||
+                "$PB" -c "Add '${p}:Silence Bell' bool true" "$ITERM_PLIST" 2>/dev/null
 
-                "$PB" -c "Set '${p}:BM Growl' true" "$ITERM_PLIST" 2>/dev/null ||
-                "$PB" -c "Add '${p}:BM Growl' bool true" "$ITERM_PLIST" 2>/dev/null
+                "$PB" -c "Set '${p}:BM Growl' false" "$ITERM_PLIST" 2>/dev/null ||
+                "$PB" -c "Add '${p}:BM Growl' bool false" "$ITERM_PLIST" 2>/dev/null
             done
 
             ok "Configured ${count} iTerm2 profile(s)"
@@ -155,13 +156,10 @@ case "\$1" in
     attention)
         printf '\033]6;1;bg;red;brightness;200\a\033]6;1;bg;green;brightness;150\a\033]6;1;bg;blue;brightness;50\a' > "\$TTY" 2>/dev/null
         set_title "⏸ \${L_ATTENTION}\${dir:+ · \$dir}"
-        printf '\a' > "\$TTY" 2>/dev/null
-        sleep 0.3; printf '\a' > "\$TTY" 2>/dev/null
         ;;
     done)
         printf '\033]6;1;bg;red;brightness;65\a\033]6;1;bg;green;brightness;105\a\033]6;1;bg;blue;brightness;200\a' > "\$TTY" 2>/dev/null
         set_title "✓ \${L_DONE}\${dir:+ · \$dir}"
-        printf '\a' > "\$TTY" 2>/dev/null
         ;;
     reset)
         printf '\033]6;1;bg;*;default\a' > "\$TTY" 2>/dev/null

@@ -4,12 +4,47 @@
 
 Claude Code CLI 工具的配置脚本集合。
 
-## 脚本列表
+## 快速开始（推荐）
+
+一条命令安装所有功能 — 自动批准、Tab 状态指示、Session 管理面板：
+
+```bash
+# 克隆并安装（中文）
+git clone https://github.com/calmkart/vibe-coding-script.git
+cd vibe-coding-script/claude-code
+./setup.sh install --lang zh
+
+# 英文标签
+./setup.sh install
+
+# 查看状态
+./setup.sh status
+
+# 卸载全部
+./setup.sh uninstall
+```
+
+安装内容：
+
+| 功能 | 说明 |
+|---|---|
+| **自动批准** | Bash 命令自动执行，无需手动确认 |
+| **Tab 指示器** | 松绿（执行中）/ 琥珀（待确认）/ 蓝色（等待输入）Tab 颜色 + 标题 |
+| **Session 面板** | `📂 项目名` / `🌿 分支名` 水印 + 状态栏概览弹出面板 |
+
+安装后重启 iTerm2。首次使用需手动操作（仅一次）：允许 Python API 连接，然后将 "Claude Sessions" 拖入状态栏。
+
+---
+
+## 高级用法（单独安装）
+
+如需精细控制，每个功能可单独安装：
 
 | 脚本 | 说明 |
 |---|---|
 | [auto-approve-setup.sh](#auto-approve-setupsh) | 自动批准 Bash 命令，无需手动确认 |
 | [iterm-status-setup.sh](#iterm-status-setupsh) | iTerm2 tab 颜色和标题状态指示器 |
+| [iterm-monitor-setup.sh](#iterm-monitor-setupsh) | 多 session 管理面板 — 紧凑标记水印、Dashboard 弹出面板、状态栏概览 |
 
 ---
 
@@ -48,38 +83,6 @@ chmod +x auto-approve-setup.sh
 ./auto-approve-setup.sh
 ```
 
-#### 执行效果
-
-脚本执行后会：
-
-1. 创建 `~/.claude/hooks/` 目录
-2. 生成 `auto-approve.sh` hook 脚本
-3. 在 `settings.json` 中添加 PreToolUse hook 配置
-
-配置完成后，Claude Code 执行 Bash 命令时将自动批准，不再需要手动确认。
-
-#### 配置说明
-
-脚本会在 `~/.claude/settings.json` 中添加以下配置：
-
-```json
-{
-  "hooks": {
-    "PreToolUse": [
-      {
-        "matcher": "Bash",
-        "hooks": [
-          {
-            "type": "command",
-            "command": "~/.claude/hooks/auto-approve.sh"
-          }
-        ]
-      }
-    ]
-  }
-}
-```
-
 #### 注意事项
 
 - 此配置会自动批准所有 Bash 命令，请在信任的环境中使用
@@ -100,96 +103,60 @@ chmod +x auto-approve-setup.sh
 | **待确认** | 琥珀 | `⏸ 待确认 · 项目名` | Claude 向用户提问 |
 | **等待输入** | 蓝色 | `✓ 等待输入 · 项目名` | Claude 完成回复 |
 
-#### 工作原理
-
-```
-用户发消息       → UserPromptSubmit  → 🟢 松绿（执行中）
-Claude 提问      → PreToolUse        → 🟡 琥珀（待确认）
-用户回答问题     → PostToolUse       → 🟢 松绿（恢复执行）
-Claude 完成      → Stop              → 🔵 蓝色（等待输入）
-```
-
 #### 依赖
 
 - **macOS** + iTerm2
 - **Claude Code** CLI
 - **Python 3**（macOS 自带）
 
-无需安装额外依赖。
-
 #### 使用方法
 
 ```bash
-# 安装（英文标签，默认）
-curl -fsSL https://raw.githubusercontent.com/calmkart/vibe-coding-script/main/claude-code/iterm-status-setup.sh | bash -s install
-
-# 安装（中文标签）
-curl -fsSL https://raw.githubusercontent.com/calmkart/vibe-coding-script/main/claude-code/iterm-status-setup.sh | bash -s install --lang zh
-
-# 卸载（清理所有修改）
-curl -fsSL https://raw.githubusercontent.com/calmkart/vibe-coding-script/main/claude-code/iterm-status-setup.sh | bash -s uninstall
-
-# 或者克隆仓库后执行
-git clone https://github.com/calmkart/vibe-coding-script.git
-cd vibe-coding-script/claude-code
 ./iterm-status-setup.sh install              # 英文
 ./iterm-status-setup.sh install --lang zh    # 中文
 ./iterm-status-setup.sh uninstall            # 卸载
 ./iterm-status-setup.sh status               # 查看状态
 ```
 
-#### 命令说明
-
-| 命令 | 说明 |
-|---|---|
-| `install` | 安装，默认英文标签 |
-| `install --lang zh` | 安装，中文标签 |
-| `uninstall` | 删除 hook 脚本，清理 settings.json，移除环境变量 |
-| `status` | 显示是否已安装及当前语言 |
-
-#### 执行效果
-
-**安装：**
-
-1. **配置 iTerm2**（通过 PlistBuddy）— 为所有 profile 开启 Visual Bell、Flashing Bell，设置 tab 标题显示 Session Name + Job Name
-2. **创建 hook 脚本** `~/.claude/hooks/iterm-status.sh` — 通过 iTerm2 escape sequence 控制 tab 颜色和标题，使用 TTY 缓存提升性能
-3. **更新 `~/.claude/settings.json`** — 添加 `UserPromptSubmit`、`PreToolUse`、`PostToolUse`、`Stop`、`Notification` 等 hook；设置 `CLAUDE_CODE_DISABLE_TERMINAL_TITLE` 防止 Claude Code 覆盖 tab 标题
-
-**卸载：**
-
-1. 删除 `~/.claude/hooks/iterm-status.sh`
-2. 从 `settings.json` 中移除所有 `iterm-status.sh` 相关 hook 条目
-3. 移除 `CLAUDE_CODE_DISABLE_TERMINAL_TITLE` 环境变量
-4. 清理临时文件
-5. iTerm2 plist 不做改动（保留的设置无副作用）
-
-#### 语言设置
-
-语言在安装时写入 hook 脚本，切换语言只需重新安装：
-
-```bash
-./iterm-status-setup.sh install --lang zh    # 切换到中文
-./iterm-status-setup.sh install              # 切换回英文
-```
+#### 语言
 
 | 语言 | 执行中 | 待确认 | 等待输入 |
 |---|---|---|---|
 | `en`（默认） | `◉ Working` | `⏸ Action Needed` | `✓ Ready` |
 | `zh` | `◉ 执行中` | `⏸ 待确认` | `✓ 等待输入` |
 
-#### 测试
+---
 
-安装后重启 iTerm2，在 shell 中运行：
+### iterm-monitor-setup.sh
+
+为 iTerm2 添加 Python API 守护进程，用于管理多个 Claude Code session — 紧凑标记水印、Dashboard 管理面板、状态栏概览。
+
+#### 效果
+
+| 功能 | 说明 |
+|---|---|
+| **Badge 水印** | `📂 项目名` / `🌿 分支名` — 紧凑标注水印（占终端 15% 宽度，不遮挡内容） |
+| **Worktree 标识** | worktree 分支带 `⤴` 后缀，与主仓库区分 |
+| **Dashboard** | 点击状态栏打开深色主题管理面板 — 按状态排序的 session 卡片 |
+| **状态栏** | `🤖 3 \| ◉2 ⏸1 ✓1` — 总 session 数 + 按状态统计 |
+
+#### 依赖
+
+- **macOS** + iTerm2
+- **iterm-status-setup.sh** 已安装（前置条件）
+- **Python 3** + **iterm2** pip 包（安装脚本会自动安装）
+
+#### 使用方法
 
 ```bash
-echo '{}' | ~/.claude/hooks/iterm-status.sh working    # 松绿
-echo '{}' | ~/.claude/hooks/iterm-status.sh attention  # 琥珀
-echo '{}' | ~/.claude/hooks/iterm-status.sh done       # 蓝色
-echo '{}' | ~/.claude/hooks/iterm-status.sh reset      # 恢复默认
+./iterm-monitor-setup.sh install
+./iterm-monitor-setup.sh uninstall
+./iterm-monitor-setup.sh status
 ```
 
 #### 注意事项
 
-- 脚本支持重复执行，不会产生重复配置
-- 自动合并到现有 `settings.json`，不会覆盖其他 hook 或设置
-- 首次安装后需重启 iTerm2 使 plist 配置生效
+- 必须先安装 `iterm-status-setup.sh`
+- Badge 尺寸为 15% 宽 × 10% 高 — 可见但不遮挡终端内容
+- 过期 session 自动清理（超过 5 分钟或进程已退出）
+- Dashboard 按状态排序（执行中 → 待确认 → 等待输入），方便快速扫视
