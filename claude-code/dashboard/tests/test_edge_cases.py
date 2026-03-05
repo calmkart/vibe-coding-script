@@ -268,7 +268,7 @@ class TestCorruptedData:
             mod.SESSION_DIR = orig_dir
 
     def test_corrupt_stats_cache(self, tmp_path):
-        """Corrupted stats-cache.json should return empty stats."""
+        """Corrupted stats-cache.json only affects hour_counts; session data still loads."""
         import dashboard.data.stats as mod
 
         corrupt = tmp_path / "stats.json"
@@ -279,7 +279,7 @@ class TestCorruptedData:
         try:
             result = mod.load_stats()
             assert isinstance(result, UsageStats)
-            assert result.total_sessions == 0
+            assert result.hour_counts == {}
         finally:
             mod.STATS_PATH = orig_path
 
