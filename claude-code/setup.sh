@@ -11,12 +11,12 @@ set -euo pipefail
 #    ./setup.sh uninstall [feature]
 #    ./setup.sh status
 #
-#  Features: auto-approve, iterm-status, iterm-monitor
+#  Features: auto-approve, iterm-status, iterm-monitor, dashboard
 #  Omit feature name to install/uninstall all.
 # ============================================================
 
 SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
-FEATURES=("auto-approve" "iterm-status" "iterm-monitor")
+FEATURES=("auto-approve" "iterm-status" "iterm-monitor" "dashboard")
 
 info()  { printf '\033[1;34m[INFO]\033[0m  %s\n' "$1"; }
 ok()    { printf '\033[1;32m[  OK]\033[0m  %s\n' "$1"; }
@@ -36,6 +36,7 @@ Features:
   auto-approve    Auto-approve Bash commands (no manual confirmation)
   iterm-status    iTerm2 tab color & title status indicator
   iterm-monitor   Multi-session dashboard (badges, status bar, popover)
+  dashboard       Terminal TUI dashboard for session management
 
 Omit feature name to install/uninstall all features.
 
@@ -106,6 +107,8 @@ do_install() {
                 command -v jq &>/dev/null || { err "jq not found — brew install jq"; missing=1; } ;;
             iterm-status|iterm-monitor)
                 [ -f "$HOME/Library/Preferences/com.googlecode.iterm2.plist" ] || { err "iTerm2 not found"; missing=1; } ;;
+            dashboard)
+                command -v python3 &>/dev/null || { err "python3 not found"; missing=1; } ;;
         esac
         if [ "$target" = "iterm-monitor" ]; then
             command -v python3 &>/dev/null || { err "python3 not found"; missing=1; }

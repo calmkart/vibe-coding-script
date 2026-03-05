@@ -12,7 +12,8 @@ vibe-coding-script/
 │   ├── setup.sh              # ⭐ 一键安装
 │   ├── auto-approve/         # Bash 自动批准
 │   ├── iterm-status/         # Tab 颜色和标题指示器
-│   └── iterm-monitor/        # Session 管理面板
+│   ├── iterm-monitor/        # Session 管理面板
+│   └── dashboard/            # 终端 TUI 仪表盘
 ├── README.md
 └── README_CN.md
 ```
@@ -32,7 +33,8 @@ cd vibe-coding-script/claude-code
 功能：
 - **auto-approve** — Bash 命令自动执行，无需手动确认
 - **iterm-status** — iTerm2 tab 颜色和标题随 Claude Code 状态自动变化
-- **iterm-monitor** — 项目水印、状态栏概览、Dashboard 弹出面板
+- **iterm-monitor** — 项目水印、状态栏概览、可点击跳转的 Dashboard 面板
+- **dashboard** — 终端 TUI 仪表盘，支持 session 监控、历史浏览、用量统计和对话搜索
 
 详见 [claude-code/README_CN.md](./claude-code/README_CN.md)
 

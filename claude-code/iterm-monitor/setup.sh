@@ -55,6 +55,16 @@ EOF
 #  INSTALL
 # ===========================================================
 do_install() {
+    # Parse --lang
+    local lang="en"
+    while [ $# -gt 0 ]; do
+        case "$1" in
+            --lang) lang="${2:-en}"; shift 2 ;;
+            --lang=*) lang="${1#--lang=}"; shift ;;
+            *) shift ;;
+        esac
+    done
+
     # ------------------------------------------------------
     # 1. Pre-flight
     # ------------------------------------------------------
@@ -134,11 +144,18 @@ if [ -n "$full_cwd" ]; then
         [ -f "$full_cwd/.git" ] && worktree="$branch"
     fi
 fi
-case "$1" in
+_mon_status="${STATUS:-$1}"
+case "$_mon_status" in
     reset) rm -f "$SESSION_FILE" 2>/dev/null ;;
-    *) printf '{"tty":"%s","pid":%s,"status":"%s","project":"%s","branch":"%s","worktree":"%s","cwd":"%s","timestamp":%s}\n' \
-        "$TTY" "$PPID" "${1:-unknown}" "${dir:-unknown}" "${branch:-}" "${worktree:-}" "${full_cwd:-}" "$(date +%s)" \
-        > "$SESSION_FILE" 2>/dev/null ;;
+    working|attention|done)
+        printf '{"tty":"%s","pid":%s,"status":"%s","project":"%s","branch":"%s","worktree":"%s","cwd":"%s","timestamp":%s}\n' \
+            "$TTY" "$PPID" "$_mon_status" "${dir:-unknown}" "${branch:-}" "${worktree:-}" "${full_cwd:-}" "$(date +%s)" \
+            > "$SESSION_FILE" 2>/dev/null ;;
+    *)
+        # Unknown status (e.g. Notification with no arg): refresh timestamp only
+        if [ -f "$SESSION_FILE" ]; then
+            sed -i '' "s/\"timestamp\":[0-9]*/\"timestamp\":$(date +%s)/" "$SESSION_FILE" 2>/dev/null
+        fi ;;
 esac
 # --- END claude-session-monitor ---
 HOOKEOF
@@ -151,9 +168,9 @@ HOOKEOF
     info "Installing daemon script..."
 
     mkdir -p "$AUTOLAUNCH_DIR"
-    cp "$DAEMON_SRC" "$DAEMON_DEST"
+    sed "s/^LANG = \"en\"/LANG = \"$lang\"/" "$DAEMON_SRC" > "$DAEMON_DEST"
     chmod +x "$DAEMON_DEST"
-    ok "Daemon installed: $DAEMON_DEST"
+    ok "Daemon installed: $DAEMON_DEST (lang=$lang)"
 
     # ------------------------------------------------------
     # 5. Enable iTerm2 Python API
@@ -186,8 +203,8 @@ HOOKEOF
     echo ""
     echo "  Features:"
     echo "    Badge      — 📂 project-name / 🌿 branch (compact watermark)"
-    echo "    Dashboard  — click status bar for rich session dashboard"
-    echo "    Status Bar — 🤖 3 | ◉2 ⏸1 overview of all sessions"
+    echo "    Dashboard  — click status bar → session cards, click card → jump to terminal"
+    echo "    Status Bar — 🤖 3 │ ⚡2 🔔1 ✔️1 (⚡running 🔔waiting ✔️idle)"
     echo ""
     echo "  Next steps:"
     echo "    1. Restart iTerm2"
@@ -198,8 +215,8 @@ HOOKEOF
     echo ""
     echo "  功能说明："
     echo "    Badge      — 📂 项目名 / 🌿 分支名（紧凑水印，不遮挡内容）"
-    echo "    Dashboard  — 点击状态栏打开 session 管理面板"
-    echo "    状态栏     — 🤖 3 | ◉2 ⏸1 显示所有 session 概览"
+    echo "    Dashboard  — 点击状态栏打开 session 面板，点击卡片跳转到对应终端"
+    echo "    状态栏     — 🤖 3 │ ⚡2 🔔1 ✔️1（⚡运行中 🔔待确认 ✔️空闲）"
     echo ""
     echo "  下一步："
     echo "    1. 重启 iTerm2"

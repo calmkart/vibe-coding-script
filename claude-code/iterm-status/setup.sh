@@ -146,9 +146,46 @@ if [ -n "\$input" ]; then
     [ -n "\$cwd" ] && dir=\$(basename "\$cwd")
 fi
 
-set_title() { printf '\033]1;%s\a' "\$1" > "\$TTY" 2>/dev/null; }
+# For PreToolUse, only set attention for tools that actually block for user input
+if [ "\$1" = "attention" ] && [ -n "\$input" ]; then
+    tool=\$(echo "\$input" | grep -oE '"tool_name" *: *"[^"]*"' | head -1 | sed 's/.*: *"//;s/"$//')
+    case "\$tool" in
+        AskUserQuestion|EnterPlanMode|ExitPlanMode|"") ;;
+        Bash)
+            # git push requires confirmation per hook config
+            echo "\$input" | grep -qE 'git.*push' || exit 0
+            ;;
+        *) exit 0 ;;
+    esac
+fi
+
+# State lock: attention can only be cleared by "working" (user confirmed)
+# Prevents done/notification from overriding attention
+ATTENTION_LOCK="/tmp/iterm-attention-\$PPID"
+STATUS="\$1"
 
 case "\$1" in
+    attention)
+        echo 1 > "\$ATTENTION_LOCK"
+        ;;
+    working)
+        rm -f "\$ATTENTION_LOCK"
+        ;;
+    done|"")
+        if [ -f "\$ATTENTION_LOCK" ]; then
+            STATUS="attention"
+        fi
+        ;;
+    reset)
+        rm -f "\$ATTENTION_LOCK"
+        ;;
+esac
+
+[ -z "\$STATUS" ] && exit 0
+
+set_title() { printf '\033]1;%s\a' "\$1" > "\$TTY" 2>/dev/null; }
+
+case "\$STATUS" in
     working)
         printf '\033]6;1;bg;red;brightness;50\a\033]6;1;bg;green;brightness;145\a\033]6;1;bg;blue;brightness;80\a' > "\$TTY" 2>/dev/null
         set_title "◉ \${L_WORKING}\${dir:+ · \$dir}"
@@ -195,17 +232,17 @@ def hook_entry(matcher, cmd):
 def is_iterm_status(entry):
     return "iterm-status.sh" in json.dumps(entry)
 
-hooks["Notification"] = [hook_entry("*", CMD)]
+hooks["Notification"] = [hook_entry("*", f"{CMD} done")]
 hooks["UserPromptSubmit"] = [hook_entry("*", f"{CMD} working")]
 
 posttool = [h for h in hooks.get("PostToolUse", []) if not is_iterm_status(h)]
-posttool.insert(0, hook_entry("AskUserQuestion", f"{CMD} working"))
+posttool.insert(0, hook_entry("*", f"{CMD} working"))
 hooks["PostToolUse"] = posttool
 
 hooks["Stop"] = [hook_entry("*", f"{CMD} done")]
 
 pretool = [h for h in hooks.get("PreToolUse", []) if not is_iterm_status(h)]
-pretool.insert(0, hook_entry("AskUserQuestion", f"{CMD} attention"))
+pretool.insert(0, hook_entry("*", f"{CMD} attention"))
 hooks["PreToolUse"] = pretool
 
 settings.setdefault("env", {})["CLAUDE_CODE_DISABLE_TERMINAL_TITLE"] = "1"

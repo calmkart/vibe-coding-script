@@ -12,7 +12,8 @@ vibe-coding-script/
 │   ├── setup.sh              # ⭐ One-click install
 │   ├── auto-approve/         # Bash auto-approve
 │   ├── iterm-status/         # Tab color & title indicator
-│   └── iterm-monitor/        # Session dashboard
+│   ├── iterm-monitor/        # Session dashboard
+│   └── dashboard/            # Terminal TUI dashboard
 ├── README.md
 └── README_CN.md
 ```
@@ -32,7 +33,8 @@ cd vibe-coding-script/claude-code
 Features:
 - **auto-approve** — Bash commands run without manual confirmation
 - **iterm-status** — iTerm2 tab color & title changes by Claude Code status
-- **iterm-monitor** — Per-project badges, status bar overview, rich dashboard popover
+- **iterm-monitor** — Per-project badges, status bar overview, click-to-navigate dashboard
+- **dashboard** — Terminal TUI for session monitoring, history browsing, usage stats & conversation search
 
 See [claude-code/README.md](./claude-code/README.md) for details.
 

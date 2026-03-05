@@ -1,0 +1,311 @@
+/* Claude Code Dashboard - Dark Theme */
+
+Screen {
+    background: #1a1a2e;
+    color: #e0e0e0;
+}
+
+/* Header */
+Header {
+    background: #16213e;
+    color: #fff;
+}
+
+/* Hide the command palette icon in Header */
+HeaderIcon {
+    display: none;
+}
+
+/* Footer */
+Footer {
+    background: #0f1117;
+}
+
+/* Tab navigation */
+TabbedContent {
+    background: #1a1a2e;
+}
+
+ContentSwitcher {
+    background: #1a1a2e;
+}
+
+TabPane {
+    background: #1a1a2e;
+    padding: 0;
+}
+
+Tabs {
+    background: #16213e;
+    border-bottom: solid #2a2a4a;
+}
+
+/* Hide the underline bar below tabs */
+Underline {
+    display: none;
+}
+
+Tab {
+    color: #aaa;
+    background: #16213e;
+    padding: 0 3;
+}
+
+Tab.-active {
+    color: #fff;
+    text-style: bold;
+    background: #1a1a2e;
+}
+
+Tab:hover {
+    color: #4ade80;
+}
+
+/* Status indicators */
+.status-working {
+    color: #4ade80;
+}
+
+.status-attention {
+    color: #fbbf24;
+}
+
+.status-done {
+    color: #60a5fa;
+}
+
+/* Session card */
+.session-card {
+    height: auto;
+    margin: 0 1 1 1;
+    padding: 1 2;
+    background: #0f1117;
+    border: solid #2a2a4a;
+}
+
+.session-card:focus {
+    background: #1a1f2e;
+    border: solid #4ade80;
+}
+
+.session-card .project-name {
+    text-style: bold;
+    color: #fff;
+}
+
+.session-card .meta {
+    color: #999;
+}
+
+/* Panels */
+.panel {
+    background: #0f1117;
+    border: solid #2a2a4a;
+    margin: 1;
+    padding: 1 2;
+}
+
+.panel-title {
+    text-style: bold;
+    color: #fff;
+    margin-bottom: 1;
+}
+
+/* Split layout */
+#project-list {
+    width: 30;
+    border-right: solid #2a2a4a;
+    background: #0f1117;
+    padding: 1;
+}
+
+#session-list {
+    background: #1a1a2e;
+    padding: 1;
+}
+
+/* List items */
+.list-item {
+    padding: 0 1;
+    height: 1;
+}
+
+.list-item:focus {
+    background: #1a1f2e;
+    color: #4ade80;
+}
+
+.list-item:hover {
+    background: #151a28;
+}
+
+/* Data tables */
+DataTable {
+    background: #0f1117;
+    height: auto;
+}
+
+DataTable > .datatable--header {
+    background: #16213e;
+    color: #fff;
+    text-style: bold;
+}
+
+DataTable > .datatable--cursor {
+    background: #1a1f2e;
+}
+
+DataTable:focus > .datatable--cursor {
+    background: #1f2940;
+}
+
+/* Charts area */
+.chart-area {
+    padding: 1 2;
+    background: #0f1117;
+    border: solid #2a2a4a;
+    margin: 1 1 0 1;
+    height: auto;
+}
+
+.chart-title {
+    text-style: bold;
+    color: #aaa;
+    margin-bottom: 1;
+}
+
+/* Conversation messages */
+.msg-user {
+    background: #1b2640;
+    border-left: outer #3b82f6;
+    margin: 0 1 1 1;
+    padding: 1 2;
+}
+
+.msg-assistant {
+    background: #0f1117;
+    border-left: outer #22c55e;
+    margin: 0 1 1 1;
+    padding: 1 2;
+}
+
+.msg-tool {
+    color: #888;
+    padding: 0 2 0 4;
+    margin: 0 1;
+}
+
+/* Input / Search */
+Input {
+    background: #16213e;
+    border: solid #2a2a4a;
+    color: #e0e0e0;
+}
+
+Input:focus {
+    border: solid #4ade80;
+}
+
+/* Scrollbar */
+Scrollbar {
+    background: #0f1117;
+}
+
+ScrollbarSlider {
+    background: #333;
+}
+
+ScrollbarSlider:hover {
+    background: #777;
+}
+
+/* Summary stats bar */
+.stats-bar {
+    height: 3;
+    background: #16213e;
+    padding: 1 2;
+    border-bottom: solid #2a2a4a;
+}
+
+.stats-value {
+    text-style: bold;
+    color: #fff;
+}
+
+.stats-label {
+    color: #888;
+}
+
+/* Empty state */
+.empty-state {
+    text-align: center;
+    color: #888;
+    padding: 4;
+}
+
+/* Filter bar */
+.filter-bar {
+    dock: bottom;
+    height: 3;
+    background: #16213e;
+    border-top: solid #2a2a4a;
+    padding: 0 2;
+}
+
+/* Badge labels */
+.badge-working {
+    background: #1b3a2a;
+    color: #4ade80;
+}
+
+.badge-attention {
+    background: #3a2e1b;
+    color: #fbbf24;
+}
+
+.badge-done {
+    background: #1b2640;
+    color: #60a5fa;
+}
+
+/* Heatmap */
+.heatmap {
+    height: 3;
+    padding: 0 2;
+}
+
+/* Usage overview */
+.overview-grid {
+    layout: horizontal;
+    height: auto;
+    padding: 1;
+}
+
+.overview-card {
+    width: 1fr;
+    height: auto;
+    padding: 1 2;
+    background: #0f1117;
+    border: solid #2a2a4a;
+    margin: 0 1;
+    min-width: 20;
+}
+
+.overview-card .value {
+    text-style: bold;
+    color: #fff;
+}
+
+.overview-card .label {
+    color: #888;
+}
+
+/* Confirmation dialog */
+.confirm-dialog {
+    align: center middle;
+    background: #16213e;
+    border: solid #4ade80;
+    padding: 2 4;
+    width: 50;
+    height: auto;
+}
