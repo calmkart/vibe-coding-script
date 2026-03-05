@@ -181,11 +181,11 @@ class UsageDashboardPane(Widget):
             f"[#fbbf24]\U0001f3c6[/]  [bold white]{longest_info}[/]\n[dim]{t('longest_session')}[/]"
         )
 
-        # Model cost distribution bar
-        self._render_model_dist(stats, total_cost)
+        # Model cost distribution bar (always uses all-time cost for correct %)
+        self._render_model_dist(stats, all_time_cost)
 
-        # Project cost breakdown
-        self._render_project_costs(total_cost)
+        # Project cost breakdown (always uses all-time cost for correct %)
+        self._render_project_costs(all_time_cost)
 
         # Daily activity chart
         activity_data = self._filter_by_period(stats.daily_activity)
