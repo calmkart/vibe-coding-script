@@ -127,12 +127,33 @@ class UsageDashboardPane(Widget):
             return
 
         stats = self._stats
-        total_cost = calculate_total_cost(
+        all_time_cost = calculate_total_cost(
             {m: {"inputTokens": u.input_tokens, "outputTokens": u.output_tokens,
                  "cacheReadInputTokens": u.cache_read_tokens,
                  "cacheCreationInputTokens": u.cache_creation_tokens}
              for m, u in stats.model_usage.items()}
         )
+
+        # Compute period-filtered overview stats
+        filtered_activity = self._filter_by_period(stats.daily_activity)
+        filtered_tokens = self._filter_tokens_by_period(stats.daily_tokens)
+
+        if self._period == "all":
+            period_sessions = stats.total_sessions
+            period_messages = stats.total_messages
+            period_cost = all_time_cost
+        else:
+            period_sessions = sum(a.session_count for a in filtered_activity)
+            period_messages = sum(a.message_count for a in filtered_activity)
+            # Estimate cost by token proportion
+            all_tokens = sum(t_entry.total_tokens for t_entry in stats.daily_tokens)
+            period_tokens = sum(t_entry.total_tokens for t_entry in filtered_tokens)
+            if all_tokens > 0:
+                period_cost = all_time_cost * (period_tokens / all_tokens)
+            else:
+                period_cost = 0.0
+
+        total_cost = period_cost  # Used by downstream renderers
 
         # Header
         header = self.query_one("#usage-header", Static)
@@ -144,13 +165,13 @@ class UsageDashboardPane(Widget):
 
         # Overview cards with icons
         self.query_one("#card-sessions", Static).update(
-            f"[#60a5fa]\U0001f4cb[/]  [bold white]{stats.total_sessions}[/]\n[dim]{t('total_sessions')}[/]"
+            f"[#60a5fa]\U0001f4cb[/]  [bold white]{period_sessions}[/]\n[dim]{t('total_sessions')}[/]"
         )
         self.query_one("#card-messages", Static).update(
-            f"[#a78bfa]\U0001f4ac[/]  [bold white]{stats.total_messages:,}[/]\n[dim]{t('total_messages')}[/]"
+            f"[#a78bfa]\U0001f4ac[/]  [bold white]{period_messages:,}[/]\n[dim]{t('total_messages')}[/]"
         )
         self.query_one("#card-cost", Static).update(
-            f"[#4ade80]\U0001f4b0[/]  [bold #4ade80]{format_cost(total_cost)}[/]\n[dim]{t('est_total_cost')}[/]"
+            f"[#4ade80]\U0001f4b0[/]  [bold #4ade80]{format_cost(period_cost)}[/]\n[dim]{t('est_total_cost')}[/]"
         )
         longest_info = (
             f"{stats.longest_session_messages:,} {t('msgs')}"
