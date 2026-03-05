@@ -196,9 +196,9 @@ class UsageDashboardPane(Widget):
         daily_chart = self.query_one("#daily-chart", AsciiBarChart)
         daily_chart.set_data(chart_data, height=8)
 
-        # Cost table
+        # Cost table - scale by per-model token ratio for the selected period
         cost_table = self.query_one("#cost-table-widget", CostTable)
-        cost_table.set_data(stats.model_usage)
+        cost_table.set_data(self._scale_model_usage(stats, filtered_tokens))
 
         # Hourly heatmap
         heatmap = self.query_one("#hourly-heatmap", HourlyHeatmap)
@@ -293,6 +293,40 @@ class UsageDashboardPane(Widget):
             )
 
         widget.update("\n".join(lines) if lines else f"  [dim]{t('chart_no_data')}[/]")
+
+    def _scale_model_usage(self, stats, filtered_tokens):
+        """Scale model_usage by per-model token ratio for the selected period."""
+        from ..data.stats import ModelUsage
+        if self._period == "all":
+            return stats.model_usage
+
+        # Sum tokens per model for all-time and for the period
+        all_by_model: dict[str, int] = {}
+        for t_entry in stats.daily_tokens:
+            for model, count in t_entry.tokens_by_model.items():
+                all_by_model[model] = all_by_model.get(model, 0) + count
+
+        period_by_model: dict[str, int] = {}
+        for t_entry in filtered_tokens:
+            for model, count in t_entry.tokens_by_model.items():
+                period_by_model[model] = period_by_model.get(model, 0) + count
+
+        # Scale each model's usage
+        scaled = {}
+        for model, usage in stats.model_usage.items():
+            all_tok = all_by_model.get(model, 0)
+            period_tok = period_by_model.get(model, 0)
+            ratio = period_tok / all_tok if all_tok > 0 else 0.0
+            scaled[model] = ModelUsage(
+                model=model,
+                input_tokens=int(usage.input_tokens * ratio),
+                output_tokens=int(usage.output_tokens * ratio),
+                cache_read_tokens=int(usage.cache_read_tokens * ratio),
+                cache_creation_tokens=int(usage.cache_creation_tokens * ratio),
+                cost_usd=usage.cost_usd * ratio,
+                web_search_requests=int(usage.web_search_requests * ratio),
+            )
+        return scaled
 
     def _period_label(self) -> str:
         labels = {"all": t("period_all"), "30d": t("period_30d"), "7d": t("period_7d")}

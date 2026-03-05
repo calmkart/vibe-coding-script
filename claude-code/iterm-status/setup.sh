@@ -140,10 +140,18 @@ else
 fi
 
 input=\$(cat 2>/dev/null)
-dir=""
-if [ -n "\$input" ]; then
-    cwd=\$(echo "\$input" | grep -oE '"cwd" *: *"[^"]*"' | head -1 | sed 's/.*: *"//;s/"$//')
-    [ -n "\$cwd" ] && dir=\$(basename "\$cwd")
+
+# Lock the directory name to the initial cwd (never changes during a session)
+DIR_CACHE="/tmp/iterm-dir-\$PPID"
+if [ -f "\$DIR_CACHE" ]; then
+    read -r dir < "\$DIR_CACHE"
+else
+    dir=""
+    if [ -n "\$input" ]; then
+        cwd=\$(echo "\$input" | grep -oE '"cwd" *: *"[^"]*"' | head -1 | sed 's/.*: *"//;s/"$//')
+        [ -n "\$cwd" ] && dir=\$(basename "\$cwd")
+    fi
+    [ -n "\$dir" ] && echo "\$dir" > "\$DIR_CACHE"
 fi
 
 # For PreToolUse, only set attention for tools that actually block for user input
@@ -177,7 +185,7 @@ case "\$1" in
         fi
         ;;
     reset)
-        rm -f "\$ATTENTION_LOCK"
+        rm -f "\$ATTENTION_LOCK" "\$DIR_CACHE"
         ;;
 esac
 
@@ -288,7 +296,7 @@ PYEOF
 do_uninstall() {
     info "Removing hook script..."
     rm -f "$HOOK_SCRIPT"
-    rm -f /tmp/iterm-tty-* /tmp/iterm-status.log /tmp/iterm-tools.log 2>/dev/null
+    rm -f /tmp/iterm-tty-* /tmp/iterm-dir-* /tmp/iterm-attention-* /tmp/iterm-status.log /tmp/iterm-tools.log 2>/dev/null
     ok "Removed $HOOK_SCRIPT"
 
     info "Cleaning settings.json..."
