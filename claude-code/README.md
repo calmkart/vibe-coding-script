@@ -96,6 +96,8 @@ Supports `--lang zh` for Chinese labels (执行中 / 待确认 / 等待输入).
 
 **State lock** — once attention is set, a lock file (`/tmp/iterm-attention-$PPID`) prevents `Notification` or `Stop` from overriding it back to done. Only `working` (from `PostToolUse` after user confirms) clears the lock.
 
+**Directory lock** — the tab title shows the project directory from the first hook call and never changes, even when Claude edits files in subdirectories.
+
 ### iterm-monitor
 
 Multi-session dashboard with badges, status bar, and click-to-navigate popover.
@@ -131,9 +133,9 @@ claude-dashboard                # Launch
 
 | # | Tab | Description |
 |---|-----|-------------|
-| 1 | **Active** | Real-time view of running Claude Code sessions (auto-refreshes every 2s) |
-| 2 | **History** | Dual-pane browser — projects on the left, sessions on the right |
-| 3 | **Usage** | Daily activity chart, model breakdown, estimated cost per model |
+| 1 | **Active** | Real-time view of running Claude Code sessions with usage/cost (auto-refreshes every 2s) |
+| 2 | **History** | Dual-pane browser — projects (with cost) on the left, sessions on the right |
+| 3 | **Usage** | Daily activity, model breakdown, per-project cost, all filterable by time period (7d/30d/all) |
 | 4 | **Conversation** | Full conversation viewer with rich text rendering |
 
 **Keyboard shortcuts:**
@@ -169,7 +171,7 @@ claude-dashboard                # Launch
 **How it works:**
 - The dashboard reads Claude Code's native data files — no additional daemons or agents needed.
 - Active sessions are detected via `/tmp/claude-sessions/` JSON files with PID-based liveness checks.
-- History is loaded from `~/.claude/projects/` including `sessions-index.json` and conversation JSONL files.
+- History is loaded by scanning JSONL files in `~/.claude/projects/` (never relies on stale `sessions-index.json`).
 - Cost estimates use official Anthropic pricing (Opus / Sonnet / Haiku, including cache tiers).
 - An async TTL cache layer avoids redundant file reads.
 

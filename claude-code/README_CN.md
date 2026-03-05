@@ -96,6 +96,8 @@ iTerm2 tab 根据 Claude Code 状态自动变色并更新标题。
 
 **状态锁** — attention 设置后会写入锁文件（`/tmp/iterm-attention-$PPID`），防止后续的 `Notification` 或 `Stop` 将状态覆盖回 done。只有 `working`（用户确认后 `PostToolUse` 触发）才能解除锁。
 
+**目录锁** — Tab 标题中的项目目录名在首次 hook 调用时锁定，即使 Claude 编辑子目录中的文件也不会改变。
+
 ### iterm-monitor
 
 多 session 管理面板 — 水印标记、状态栏、可点击跳转的 Dashboard 弹出面板。
@@ -131,9 +133,9 @@ claude-dashboard                # 启动
 
 | # | 标签页 | 说明 |
 |---|--------|------|
-| 1 | **Active（活跃）** | 实时查看运行中的 Claude Code session（每 2 秒自动刷新） |
-| 2 | **History（历史）** | 双栏浏览器 — 左侧项目列表，右侧 session 列表 |
-| 3 | **Usage（用量）** | 每日活动图表、模型用量分布、各模型预估费用 |
+| 1 | **Active（活跃）** | 实时查看运行中的 Claude Code session，显示用量和费用（每 2 秒自动刷新） |
+| 2 | **History（历史）** | 双栏浏览器 — 左侧项目列表（含费用），右侧 session 列表 |
+| 3 | **Usage（用量）** | 每日活动、模型分布、按项目统计费用，支持按时间范围过滤（7天/30天/全部） |
 | 4 | **Conversation（对话）** | 完整对话内容查看，支持富文本渲染 |
 
 **快捷键：**
@@ -169,7 +171,7 @@ claude-dashboard                # 启动
 **工作原理：**
 - 仪表盘直接读取 Claude Code 的原生数据文件，无需额外的守护进程或代理。
 - 活跃 session 通过 `/tmp/claude-sessions/` 中的 JSON 文件检测，基于 PID 存活检查。
-- 历史数据从 `~/.claude/projects/` 加载，包括 `sessions-index.json` 和对话 JSONL 文件。
+- 历史数据通过扫描 `~/.claude/projects/` 中的 JSONL 文件加载（不依赖可能过期的 `sessions-index.json`）。
 - 费用估算使用 Anthropic 官方定价（Opus / Sonnet / Haiku，含缓存层定价）。
 - 内置异步 TTL 缓存层，避免重复读取文件。
 
