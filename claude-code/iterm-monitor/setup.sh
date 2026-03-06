@@ -328,7 +328,7 @@ shift || true
 
 case "$cmd" in
     install)
-        do_install
+        do_install "$@"
         ;;
     uninstall)
         do_uninstall
