@@ -12,6 +12,8 @@ from textual.widget import Widget
 from textual.widgets import Static, Input
 
 from ..data.history import SessionEntry, load_conversation
+from rich.markup import escape as markup_escape
+
 from ..utils.format import format_date, truncate_text
 from ..utils.i18n import t
 
@@ -159,8 +161,8 @@ class ConversationPane(Widget):
                     usage_parts.append(f"[dim]{format_model_name(s.primary_model)}[/]")
             usage_str = "    ".join(usage_parts)
             header.update(
-                f"[bold white]{s.project_name}[/]  "
-                f"\U0001f33f {s.git_branch or '-'}  "
+                f"[bold white]{markup_escape(s.project_name)}[/]  "
+                f"\U0001f33f {markup_escape(s.git_branch or '-')}  "
                 f"[dim]{s.session_id[:8]}[/]  "
                 f"{usage_str}\n"
                 f"[dim]{t('conv_hint')}[/]"
@@ -168,8 +170,8 @@ class ConversationPane(Widget):
         elif self._active_session:
             a = self._active_session
             header.update(
-                f"[bold white]{a['project']}[/]  "
-                f"\U0001f33f {a['branch'] or '-'}  "
+                f"[bold white]{markup_escape(a['project'])}[/]  "
+                f"\U0001f33f {markup_escape(a['branch'] or '-')}  "
                 f"{len(self._messages)} {t('msgs')}\n"
                 f"[dim]{t('conv_hint_short')}[/]"
             )
@@ -199,7 +201,7 @@ class ConversationPane(Widget):
                 if not text:
                     continue
                 scroll.mount(Static(
-                    f"[bold white on #1e3a5f] {t('user_role')} [/]  [dim]{ts_display}[/]\n{text}",
+                    f"[bold white on #1e3a5f] {t('user_role')} [/]  [dim]{ts_display}[/]\n{markup_escape(text)}",
                     classes="msg-user",
                 ))
 
@@ -254,7 +256,7 @@ class ConversationPane(Widget):
             if btype == "text":
                 text = block.get("text", "")
                 if text:
-                    parts.append(self._truncate(text, 5000))
+                    parts.append(markup_escape(self._truncate(text, 5000)))
 
             elif btype == "tool_use":
                 name = block.get("name", "unknown")
@@ -263,7 +265,7 @@ class ConversationPane(Widget):
                 if isinstance(tool_input, dict):
                     first_val = ""
                     for k, v in tool_input.items():
-                        first_val = str(v)[:80]
+                        first_val = markup_escape(str(v)[:80])
                         break
                     parts.append(f"[dim]\u2514 Tool: {name}({first_val})[/]")
                 else:
@@ -277,7 +279,7 @@ class ConversationPane(Widget):
                 if self._show_thinking:
                     text = block.get("thinking", block.get("text", ""))
                     if text:
-                        parts.append(f"[dim italic]\U0001f4ad {text[:2000]}[/]")
+                        parts.append(f"[dim italic]\U0001f4ad {markup_escape(text[:2000])}[/]")
                 else:
                     parts.append(f"[dim]\U0001f4ad [{t('thinking_expand_hint')}][/]")
 

@@ -7,6 +7,8 @@ from textual.reactive import reactive
 from textual.widget import Widget
 from textual.widgets import Static
 
+from rich.markup import escape as markup_escape
+
 from ..utils.format import format_age, shorten_path
 from ..utils.i18n import t
 
@@ -102,11 +104,11 @@ class ActiveSessionCard(Widget):
 
         yield Static(
             f"[{color}]{icon}[/] [{color}]{label}[/]  "
-            f"[bold white]{self.project}[/]",
+            f"[bold white]{markup_escape(self.project)}[/]",
             classes="card-header",
         )
         yield Static(
-            f"\U0001f33f {branch_display}{wt_tag}    "
+            f"\U0001f33f {markup_escape(branch_display)}{wt_tag}    "
             f"TTY: {tty_short}    "
             f"{age}",
             classes="card-meta",
@@ -123,7 +125,7 @@ class ActiveSessionCard(Widget):
                 parts.append(f"[dim]{format_model_name(self.primary_model)}[/]")
             yield Static("    ".join(parts), classes="card-meta")
         yield Static(
-            f"\U0001f4c2 {shorten_path(self.cwd, 70)}",
+            f"\U0001f4c2 {markup_escape(shorten_path(self.cwd, 70))}",
             classes="card-path",
         )
 
@@ -199,14 +201,14 @@ class HistorySessionCard(Widget):
 
         yield Static(
             f"[bold white]{date_str}[/]  "
-            f"\U0001f33f {self.git_branch or '-'}    "
+            f"\U0001f33f {markup_escape(self.git_branch or '-')}    "
             f"[dim]{self.session_id[:8]}[/]",
             classes="card-header",
         )
         if summary:
-            yield Static(f'"{summary}"', classes="card-summary")
+            yield Static(f'"{markup_escape(summary)}"', classes="card-summary")
         elif prompt:
-            yield Static(f'"{prompt}"', classes="card-summary")
+            yield Static(f'"{markup_escape(prompt)}"', classes="card-summary")
 
         # Usage line: tokens + cost + model
         if self.total_output_tokens > 0:

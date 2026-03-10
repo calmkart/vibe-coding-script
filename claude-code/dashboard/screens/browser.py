@@ -14,6 +14,8 @@ from ..data.history import (
     ProjectInfo, SessionEntry,
     discover_all_projects, load_conversation, delete_session,
 )
+from rich.markup import escape as markup_escape
+
 from ..utils.format import format_date, format_filesize, format_cost, truncate_text
 from ..utils.i18n import t
 
@@ -208,7 +210,7 @@ class SessionBrowserPane(Widget):
             total_cost = sum(s.estimated_cost for s in project.sessions)
             cost_str = f"[#4ade80]{format_cost(total_cost)}[/]" if total_cost > 0 else ""
             item = Static(
-                f"[bold white]{display_name}[/]\n"
+                f"[bold white]{markup_escape(display_name)}[/]\n"
                 f"[dim]{project.session_count} {t('n_sessions')}[/]  {cost_str}",
                 classes="project-item",
                 id=f"project-{i}",
@@ -238,7 +240,7 @@ class SessionBrowserPane(Widget):
         header = self.query_one("#session-header", Static)
         sort_display = t(f"sort_{self._sort_mode}")
         header.update(
-            f"[bold]{project.name}[/] ({len(sessions)} {t('n_sessions')})    "
+            f"[bold]{markup_escape(project.name)}[/] ({len(sessions)} {t('n_sessions')})    "
             f"{t('sort_label')}: {sort_display}\n"
             f"[dim]{t('browser_hint_sessions')}[/]"
         )

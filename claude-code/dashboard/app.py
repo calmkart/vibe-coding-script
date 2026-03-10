@@ -19,6 +19,7 @@ import sys
 if __name__ == "__main__":
     sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
+from rich.markup import escape as markup_escape
 from textual.app import App, ComposeResult
 from textual.binding import Binding
 from textual.screen import ModalScreen
@@ -88,15 +89,15 @@ class SearchScreen(ModalScreen):
         results = search_conversations(query, max_results=20)
         results_widget = self.query_one("#search-results", Static)
         if not results:
-            results_widget.update(f"[dim]{t('search_no_results')} '{query}'[/]")
+            results_widget.update(f"[dim]{t('search_no_results')} '{markup_escape(query)}'[/]")
             return
-        lines = [f"[bold]{len(results)} {t('search_results_for')} '{query}':[/]\n"]
+        lines = [f"[bold]{len(results)} {t('search_results_for')} '{markup_escape(query)}':[/]\n"]
         for r in results:
             role_color = "#3b82f6" if r.role == "user" else "#22c55e"
-            preview = r.content_preview.replace("[", "\\[")[:120]
+            preview = markup_escape(r.content_preview[:120])
             lines.append(
                 f"[{role_color}]{r.role.upper()}[/] in "
-                f"[bold]{r.project_name}[/] [dim]{r.session_id[:8]}[/]\n"
+                f"[bold]{markup_escape(r.project_name)}[/] [dim]{r.session_id[:8]}[/]\n"
                 f"  {preview}\n"
             )
         results_widget.update("\n".join(lines))

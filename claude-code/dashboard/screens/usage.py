@@ -7,6 +7,8 @@ from textual.containers import Horizontal, Vertical, VerticalScroll
 from textual.widget import Widget
 from textual.widgets import Static
 
+from rich.markup import escape as markup_escape
+
 from ..data.stats import UsageStats, load_stats
 from ..utils.format import format_date, format_tokens, format_cost, format_duration
 from ..utils.pricing import calculate_cost, calculate_total_cost, format_model_name
@@ -288,7 +290,7 @@ class UsageDashboardPane(Widget):
             empty_str = "\u2591" * empty
             bar = f"[{color}]{fill_str}[/][#333]{empty_str}[/]"
             lines.append(
-                f"  {name:<16} {bar}  {format_cost(cost)}  "
+                f"  {markup_escape(name):<16} {bar}  {format_cost(cost)}  "
                 f"({pct:.0f}%)  [dim]{sessions} {t('n_sessions')}[/]"
             )
 

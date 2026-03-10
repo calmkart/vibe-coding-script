@@ -183,7 +183,7 @@ def shorten_path(path, max_len=40):
 # --- Status Icons ---
 # Using clear, color-distinguishable indicators
 
-STATUS_ICON = {"working": "\u26a1", "attention": "\U0001f514", "done": "\u2714\ufe0f"}
+STATUS_ICON = {"working": "\u26a1", "attention": "\U0001f514", "done": "\U0001f4a4"}
 
 
 def session_summary(sessions):
@@ -201,7 +201,7 @@ def session_summary(sessions):
     if counts["attention"]:
         parts.append(f"\U0001f514{counts['attention']}")
     if counts["done"]:
-        parts.append(f"\u2714\ufe0f{counts['done']}")
+        parts.append(f"\U0001f4a4{counts['done']}")
     total = sum(counts.values())
     summary = " ".join(parts) if parts else "\u2014"
     return f"\U0001f916 {total} \u2502 {summary}"
@@ -236,7 +236,7 @@ def dashboard_html(sessions, tty_sid_map=None, nav_port=0):
     pill_cfg = {
         "working":   ("\u26a1", _s("running"),  "#0d2818", "#4ade80", "#22c55e"),
         "attention": ("\U0001f514", _s("waiting"),  "#2a1f0a", "#fbbf24", "#f59e0b"),
-        "done":      ("\u2714\ufe0f", _s("idle"),     "#0d1520", "#60a5fa", "#3b82f6"),
+        "done":      ("\U0001f4a4", _s("idle"),     "#1a0d2e", "#c084fc", "#a855f7"),
     }
     stats_parts = []
     for key in ("working", "attention", "done"):
@@ -250,10 +250,10 @@ def dashboard_html(sessions, tty_sid_map=None, nav_port=0):
     stats_html = " ".join(stats_parts)
 
     # Card style maps
-    color_map = {"working": "#4ade80", "attention": "#fbbf24", "done": "#60a5fa"}
-    border_map = {"working": "#22c55e", "attention": "#f59e0b", "done": "#3b82f6"}
-    bg_map = {"working": "#0a1f14", "attention": "#1a150a", "done": "#0a1220"}
-    hover_bg_map = {"working": "#0f2a1c", "attention": "#241c0f", "done": "#0f1a2c"}
+    color_map = {"working": "#4ade80", "attention": "#fbbf24", "done": "#c084fc"}
+    border_map = {"working": "#22c55e", "attention": "#f59e0b", "done": "#a855f7"}
+    bg_map = {"working": "#0a1f14", "attention": "#1a150a", "done": "#150a20"}
+    hover_bg_map = {"working": "#0f2a1c", "attention": "#241c0f", "done": "#1f0f2c"}
 
     # Build cards
     cards = []
@@ -397,7 +397,7 @@ async def main(connection):
         short_description="Claude Sessions",
         detailed_description="Dashboard for all active Claude Code sessions",
         knobs=[],
-        exemplar="\U0001f916 3 \u2502 \u26a12 \U0001f5141",
+        exemplar="\U0001f916 3 \u2502 \u26a12 \U0001f4a41",
         update_cadence=SCAN_INTERVAL,
         identifier="com.calmp.claude-session-monitor",
     )
