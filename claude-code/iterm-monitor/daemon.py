@@ -126,6 +126,23 @@ def _start_nav_server():
 
 # --- Session File I/O ---
 
+def cleanup_orphaned_tmp_files():
+    """Remove /tmp/iterm-{attention,tty,dir}-* files whose PID is dead."""
+    for pattern in ["/tmp/iterm-attention-*", "/tmp/iterm-tty-*", "/tmp/iterm-dir-*"]:
+        for path in glob.glob(pattern):
+            pid_str = path.rsplit("-", 1)[-1]
+            try:
+                pid = int(pid_str)
+                os.kill(pid, 0)  # alive — keep
+            except ProcessLookupError:
+                try:
+                    os.unlink(path)
+                except OSError:
+                    pass
+            except (PermissionError, ValueError):
+                pass  # alive or unparseable — skip
+
+
 def read_sessions():
     """Read all session JSON files. Returns dict keyed by TTY path."""
     sessions = {}
@@ -432,9 +449,16 @@ async def main(connection):
     await component.async_register(connection, statusbar_coro, onclick=onclick)
 
     # --- Polling Loop ---
+    cleanup_counter = 0
     while True:
         await asyncio.sleep(SCAN_INTERVAL)
         try:
+            # Periodically clean orphaned lock/cache files (every ~30s)
+            cleanup_counter += 1
+            if cleanup_counter >= 15:
+                cleanup_counter = 0
+                cleanup_orphaned_tmp_files()
+
             app = await iterm2.async_get_app(connection)
             sessions_data = read_sessions()
             if not sessions_data:

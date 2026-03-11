@@ -155,29 +155,34 @@ else
 fi
 
 # For PreToolUse, only set attention for tools that actually block for user input
+NEEDS_LOCK=0
 if [ "\$1" = "attention" ] && [ -n "\$input" ]; then
     tool=\$(echo "\$input" | grep -oE '"tool_name" *: *"[^"]*"' | head -1 | sed 's/.*: *"//;s/"$//')
     case "\$tool" in
-        AskUserQuestion|EnterPlanMode|ExitPlanMode|"") ;;
+        AskUserQuestion) NEEDS_LOCK=1 ;;
+        "") NEEDS_LOCK=1 ;;
         Bash)
-            # git push requires confirmation per hook config
+            # git push: show attention color but no lock (user may deny)
             echo "\$input" | grep -qE 'git.*push' || exit 0
             ;;
         *) exit 0 ;;
     esac
 fi
 
-# State lock: attention can only be cleared by "working" (user confirmed)
-# Prevents done/notification from overriding attention
+# State lock: only AskUserQuestion creates a persistent lock.
+# Other attention-worthy tools (git push) set the color momentarily
+# but can be overridden by done/notification — prevents stuck states
+# when the tool is rejected and PostToolUse never fires.
 ATTENTION_LOCK="/tmp/iterm-attention-\$PPID"
 STATUS="\$1"
 
 case "\$1" in
     attention)
-        echo 1 > "\$ATTENTION_LOCK"
+        [ "\$NEEDS_LOCK" = "1" ] && echo 1 > "\$ATTENTION_LOCK"
         ;;
-    working)
+    working|stop)
         rm -f "\$ATTENTION_LOCK"
+        [ "\$1" = "stop" ] && STATUS="done"
         ;;
     done|"")
         if [ -f "\$ATTENTION_LOCK" ]; then
@@ -247,7 +252,7 @@ posttool = [h for h in hooks.get("PostToolUse", []) if not is_iterm_status(h)]
 posttool.insert(0, hook_entry("*", f"{CMD} working"))
 hooks["PostToolUse"] = posttool
 
-hooks["Stop"] = [hook_entry("*", f"{CMD} done")]
+hooks["Stop"] = [hook_entry("*", f"{CMD} stop")]
 
 pretool = [h for h in hooks.get("PreToolUse", []) if not is_iterm_status(h)]
 pretool.insert(0, hook_entry("*", f"{CMD} attention"))
