@@ -22,6 +22,7 @@ Or install a specific feature:
 ./setup.sh install iterm-status --lang zh   # Only tab indicator (Chinese)
 ./setup.sh install iterm-monitor --lang zh  # Only session dashboard (Chinese)
 ./setup.sh install dashboard                # Only terminal TUI dashboard
+./setup.sh install skills/fix-review        # Only fix-review skill
 ```
 
 Management:
@@ -57,6 +58,10 @@ claude-code/
 │   ├── widgets/              # Reusable widgets (session card, chart, heatmap, etc.)
 │   ├── utils/                # Formatting, pricing, export, iTerm integration
 │   └── styles/               # Textual CSS theme
+├── skills/                   # Claude Code custom skills
+│   └── fix-review/           # Auto-fix GitLab MR review comments
+│       ├── setup.sh
+│       └── SKILL.md
 ```
 
 ### auto-approve
@@ -175,6 +180,25 @@ claude-dashboard                # Launch
 - Cost estimates use official Anthropic pricing (Opus / Sonnet / Haiku, including cache tiers).
 - An async TTL cache layer avoids redundant file reads.
 
+### skills/fix-review
+
+A Claude Code [custom skill](https://docs.anthropic.com/en/docs/claude-code/skills) that reads GitLab MR code review comments and auto-fixes the code.
+
+**Usage:** In Claude Code, type `/fix-review 123` (where `123` is the MR number).
+
+**Install:**
+
+```bash
+./setup.sh install skills/fix-review    # Install to current project
+cd skills/fix-review && ./setup.sh install --global  # Install globally
+```
+
+**What it does:**
+1. Reads GitLab MR discussions via API (configures token interactively on first use)
+2. Filters actionable review comments (skips resolved / acknowledgment-only)
+3. Locates the referenced file + line and applies the suggested fix
+4. Summarizes all changes when done
+
 ---
 
 ## Standalone Use
@@ -186,4 +210,6 @@ cd auto-approve && ./setup.sh install
 cd iterm-status && ./setup.sh install --lang zh
 cd iterm-monitor && ./setup.sh install
 cd dashboard && ./setup.sh install
+cd skills/fix-review && ./setup.sh install          # current project
+cd skills/fix-review && ./setup.sh install --global  # all projects
 ```

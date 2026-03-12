@@ -22,6 +22,7 @@ cd vibe-coding-script/claude-code
 ./setup.sh install iterm-status --lang zh   # 只装 Tab 指示器（中文）
 ./setup.sh install iterm-monitor --lang zh  # 只装 Session 面板（中文）
 ./setup.sh install dashboard                # 只装终端仪表盘
+./setup.sh install skills/fix-review        # 只装 fix-review 技能
 ```
 
 管理：
@@ -57,6 +58,10 @@ claude-code/
 │   ├── widgets/              # 可复用组件（session 卡片、图表、热力图等）
 │   ├── utils/                # 格式化、定价、导出、iTerm 集成
 │   └── styles/               # Textual CSS 主题
+├── skills/                   # Claude Code 自定义技能
+│   └── fix-review/           # 自动修复 GitLab MR Review 评论
+│       ├── setup.sh
+│       └── SKILL.md
 ```
 
 ### auto-approve
@@ -175,6 +180,25 @@ claude-dashboard                # 启动
 - 费用估算使用 Anthropic 官方定价（Opus / Sonnet / Haiku，含缓存层定价）。
 - 内置异步 TTL 缓存层，避免重复读取文件。
 
+### skills/fix-review
+
+Claude Code [自定义技能](https://docs.anthropic.com/en/docs/claude-code/skills)，读取 GitLab MR 的 code review 评论并自动修改代码。
+
+**使用方式：** 在 Claude Code 中输入 `/fix-review 123`（`123` 为 MR 编号）。
+
+**安装：**
+
+```bash
+./setup.sh install skills/fix-review    # 安装到当前项目
+cd skills/fix-review && ./setup.sh install --global  # 全局安装
+```
+
+**工作流程：**
+1. 通过 GitLab API 读取 MR 讨论（首次使用时交互式配置 token）
+2. 过滤可操作的 review 评论（跳过已 resolved / 纯确认类评论）
+3. 根据评论关联的文件路径和行号定位代码，执行修改
+4. 完成后汇总所有修改内容
+
 ---
 
 ## 单独使用
@@ -186,4 +210,6 @@ cd auto-approve && ./setup.sh install
 cd iterm-status && ./setup.sh install --lang zh
 cd iterm-monitor && ./setup.sh install
 cd dashboard && ./setup.sh install
+cd skills/fix-review && ./setup.sh install          # 当前项目
+cd skills/fix-review && ./setup.sh install --global  # 全局安装
 ```

@@ -13,7 +13,9 @@ vibe-coding-script/
 │   ├── auto-approve/         # Bash auto-approve
 │   ├── iterm-status/         # Tab color & title indicator
 │   ├── iterm-monitor/        # Session dashboard
-│   └── dashboard/            # Terminal TUI dashboard
+│   ├── dashboard/            # Terminal TUI dashboard
+│   └── skills/
+│       └── fix-review/       # Skill: auto-fix GitLab MR reviews
 ├── README.md
 └── README_CN.md
 ```
@@ -35,6 +37,7 @@ Features:
 - **iterm-status** — iTerm2 tab color & title changes by Claude Code status
 - **iterm-monitor** — Per-project badges, status bar overview, click-to-navigate dashboard
 - **dashboard** — Terminal TUI for session monitoring, history browsing, usage stats & conversation search
+- **skills/fix-review** — Custom skill: read GitLab MR review comments and auto-fix code
 
 See [claude-code/README.md](./claude-code/README.md) for details.
 

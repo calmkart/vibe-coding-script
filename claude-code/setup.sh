@@ -11,12 +11,12 @@ set -euo pipefail
 #    ./setup.sh uninstall [feature]
 #    ./setup.sh status
 #
-#  Features: auto-approve, iterm-status, iterm-monitor, dashboard
+#  Features: auto-approve, iterm-status, iterm-monitor, dashboard, skills/fix-review
 #  Omit feature name to install/uninstall all.
 # ============================================================
 
 SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
-FEATURES=("auto-approve" "iterm-status" "iterm-monitor" "dashboard")
+FEATURES=("auto-approve" "iterm-status" "iterm-monitor" "dashboard" "skills/fix-review")
 
 info()  { printf '\033[1;34m[INFO]\033[0m  %s\n' "$1"; }
 ok()    { printf '\033[1;32m[  OK]\033[0m  %s\n' "$1"; }
@@ -37,6 +37,7 @@ Features:
   iterm-status    iTerm2 tab color & title status indicator
   iterm-monitor   Multi-session dashboard (badges, status bar, popover)
   dashboard       Terminal TUI dashboard for session management
+  skills/fix-review  Skill: auto-fix GitLab MR code review comments
 
 Omit feature name to install/uninstall all features.
 
@@ -45,6 +46,7 @@ Examples:
   $(basename "$0") install --lang zh           Install all (Chinese)
   $(basename "$0") install iterm-status        Install only tab indicator
   $(basename "$0") uninstall iterm-monitor     Uninstall only dashboard
+  $(basename "$0") install skills/fix-review   Install only fix-review skill
 EOF
     exit 1
 }
@@ -99,7 +101,13 @@ do_install() {
     # Pre-flight
     info "Checking dependencies..."
     local missing=0
-    if [[ "$(uname)" != "Darwin" ]]; then err "macOS is required"; exit 1; fi
+    local needs_macos=0
+    for target in "${targets[@]}"; do
+        case "$target" in
+            auto-approve|iterm-status|iterm-monitor|dashboard) needs_macos=1 ;;
+        esac
+    done
+    if [ "$needs_macos" -eq 1 ] && [[ "$(uname)" != "Darwin" ]]; then err "macOS is required for $target"; exit 1; fi
 
     for target in "${targets[@]}"; do
         case "$target" in
@@ -109,6 +117,8 @@ do_install() {
                 [ -f "$HOME/Library/Preferences/com.googlecode.iterm2.plist" ] || { err "iTerm2 not found"; missing=1; } ;;
             dashboard)
                 command -v python3 &>/dev/null || { err "python3 not found"; missing=1; } ;;
+            skills/*)
+                command -v curl &>/dev/null || { err "curl not found"; missing=1; } ;;
         esac
         if [ "$target" = "iterm-monitor" ]; then
             command -v python3 &>/dev/null || { err "python3 not found"; missing=1; }
