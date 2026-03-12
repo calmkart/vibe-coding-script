@@ -28,9 +28,9 @@ usage() {
 Claude Code × iTerm2 One-Click Setup
 
 Usage:
-  $(basename "$0") install [feature] [--lang zh]   Install (all or specific)
-  $(basename "$0") uninstall [feature]              Uninstall (all or specific)
-  $(basename "$0") status                           Show current state
+  $(basename "$0") install [feature] [--lang zh] [--local]   Install (all or specific)
+  $(basename "$0") uninstall [feature] [--local]              Uninstall (all or specific)
+  $(basename "$0") status                                     Show current state
 
 Features:
   auto-approve    Auto-approve Bash commands (no manual confirmation)
@@ -39,6 +39,11 @@ Features:
   dashboard       Terminal TUI dashboard for session management
   skills/fix-review  Skill: auto-fix GitLab MR code review comments
 
+Options:
+  --local     Install skills to current project's .claude/skills/ instead of global
+              Default: skills install to ~/.claude/skills/ (available in all projects)
+  --lang zh   Use Chinese labels (for iTerm features)
+
 Omit feature name to install/uninstall all features.
 
 Examples:
@@ -46,7 +51,8 @@ Examples:
   $(basename "$0") install --lang zh           Install all (Chinese)
   $(basename "$0") install iterm-status        Install only tab indicator
   $(basename "$0") uninstall iterm-monitor     Uninstall only dashboard
-  $(basename "$0") install skills/fix-review   Install only fix-review skill
+  $(basename "$0") install skills/fix-review            Install skill (global, default)
+  $(basename "$0") install skills/fix-review --local   Install skill (current project only)
 EOF
     exit 1
 }
@@ -65,10 +71,13 @@ is_valid_feature() {
 do_install() {
     local targets=()
     local extra_args=()
+    local local_flag=""
 
     # Parse: first non-flag arg is feature name, rest are passed through
     while [ $# -gt 0 ]; do
         case "$1" in
+            --local)
+                local_flag="--local"; shift ;;
             --lang)
                 [ $# -ge 2 ] || { err "Missing value for --lang"; usage; }
                 extra_args+=("--lang" "$2"); shift 2 ;;
@@ -136,7 +145,12 @@ do_install() {
             continue
         fi
         info "Installing $target..."
-        bash "$script" install "${extra_args[@]+"${extra_args[@]}"}"
+        local install_args=("${extra_args[@]+"${extra_args[@]}"}")
+        # Pass --local to skill installers (skills default to global)
+        if [[ "$target" == skills/* ]] && [ -n "$local_flag" ]; then
+            install_args+=("$local_flag")
+        fi
+        bash "$script" install "${install_args[@]+"${install_args[@]}"}"
         echo ""
     done
 
@@ -202,9 +216,11 @@ do_install() {
 # ===========================================================
 do_uninstall() {
     local targets=()
+    local local_flag=""
 
     while [ $# -gt 0 ]; do
         case "$1" in
+            --local) local_flag="--local"; shift ;;
             -*)  err "Unknown option: $1"; usage ;;
             *)
                 if is_valid_feature "$1"; then
@@ -233,7 +249,11 @@ do_uninstall() {
             continue
         fi
         info "Uninstalling $target..."
-        bash "$script" uninstall
+        local uninstall_args=()
+        if [[ "$target" == skills/* ]] && [ -n "$local_flag" ]; then
+            uninstall_args+=("$local_flag")
+        fi
+        bash "$script" uninstall "${uninstall_args[@]+"${uninstall_args[@]}"}"
         echo ""
     done
 

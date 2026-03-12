@@ -4,13 +4,12 @@ set -euo pipefail
 # ============================================================
 #  fix-review skill installer
 #
-#  Installs the fix-review skill to the current project's
-#  .claude/skills/fix-review/ directory, or to a global
-#  location (~/.claude/skills/fix-review/).
+#  By default installs to ~/.claude/skills/fix-review/ (global).
+#  Use --local to install to the current project instead.
 #
 #  Usage:
-#    ./setup.sh install [--global]
-#    ./setup.sh uninstall [--global]
+#    ./setup.sh install [--local]
+#    ./setup.sh uninstall [--local]
 #    ./setup.sh status
 # ============================================================
 
@@ -23,56 +22,56 @@ warn()  { printf '\033[1;33m[WARN]\033[0m  %s\n' "$1"; }
 err()   { printf '\033[1;31m[ ERR]\033[0m  %s\n' "$1"; }
 
 get_target_dir() {
-    local global="${1:-false}"
-    if [ "$global" = "true" ]; then
-        echo "$HOME/.claude/skills/$SKILL_NAME"
-    else
+    local local_mode="${1:-false}"
+    if [ "$local_mode" = "true" ]; then
         # Find git root of current working directory
         local git_root
         git_root="$(git rev-parse --show-toplevel 2>/dev/null || true)"
         if [ -z "$git_root" ]; then
-            err "Not in a git repository. Use --global to install globally."
+            err "Not in a git repository. Remove --local to install globally."
             exit 1
         fi
         echo "$git_root/.claude/skills/$SKILL_NAME"
+    else
+        echo "$HOME/.claude/skills/$SKILL_NAME"
     fi
 }
 
 do_install() {
-    local global="false"
+    local local_mode="false"
     while [ $# -gt 0 ]; do
         case "$1" in
-            --global) global="true"; shift ;;
+            --local) local_mode="true"; shift ;;
             *) shift ;;
         esac
     done
 
     local target_dir
-    target_dir="$(get_target_dir "$global")"
+    target_dir="$(get_target_dir "$local_mode")"
 
     mkdir -p "$target_dir"
     cp "$SCRIPT_DIR/SKILL.md" "$target_dir/SKILL.md"
 
-    if [ "$global" = "true" ]; then
-        ok "$SKILL_NAME skill installed to $target_dir"
-        info "Available globally via /fix-review in Claude Code"
-    else
+    if [ "$local_mode" = "true" ]; then
         ok "$SKILL_NAME skill installed to $target_dir"
         info "Available via /fix-review in this project"
+    else
+        ok "$SKILL_NAME skill installed to $target_dir"
+        info "Available globally via /fix-review in Claude Code"
     fi
 }
 
 do_uninstall() {
-    local global="false"
+    local local_mode="false"
     while [ $# -gt 0 ]; do
         case "$1" in
-            --global) global="true"; shift ;;
+            --local) local_mode="true"; shift ;;
             *) shift ;;
         esac
     done
 
     local target_dir
-    target_dir="$(get_target_dir "$global")"
+    target_dir="$(get_target_dir "$local_mode")"
 
     if [ -f "$target_dir/SKILL.md" ]; then
         rm -f "$target_dir/SKILL.md"
@@ -115,13 +114,13 @@ case "$cmd" in
 fix-review skill installer
 
 Usage:
-  $(basename "$0") install [--global]    Install skill (project or global)
-  $(basename "$0") uninstall [--global]  Remove skill
-  $(basename "$0") status               Show install status
+  $(basename "$0") install [--local]    Install skill (default: global ~/.claude/skills/)
+  $(basename "$0") uninstall [--local]  Remove skill
+  $(basename "$0") status              Show install status
 
 Options:
-  --global    Install to ~/.claude/skills/ (available in all projects)
-              Default: install to current project's .claude/skills/
+  --local    Install to current project's .claude/skills/ instead of global
+             Default: install to ~/.claude/skills/ (available in all projects)
 EOF
         exit 1
         ;;

@@ -22,7 +22,8 @@ Or install a specific feature:
 ./setup.sh install iterm-status --lang zh   # Only tab indicator (Chinese)
 ./setup.sh install iterm-monitor --lang zh  # Only session dashboard (Chinese)
 ./setup.sh install dashboard                # Only terminal TUI dashboard
-./setup.sh install skills/fix-review        # Only fix-review skill
+./setup.sh install skills/fix-review             # fix-review skill (global ~/.claude, default)
+./setup.sh install skills/fix-review --local    # fix-review skill (current project only)
 ```
 
 Management:
@@ -189,8 +190,8 @@ A Claude Code [custom skill](https://docs.anthropic.com/en/docs/claude-code/skil
 **Install:**
 
 ```bash
-./setup.sh install skills/fix-review    # Install to current project
-cd skills/fix-review && ./setup.sh install --global  # Install globally
+./setup.sh install skills/fix-review          # Install globally (default)
+./setup.sh install skills/fix-review --local  # Install to current project only
 ```
 
 **What it does:**
@@ -210,6 +211,6 @@ cd auto-approve && ./setup.sh install
 cd iterm-status && ./setup.sh install --lang zh
 cd iterm-monitor && ./setup.sh install
 cd dashboard && ./setup.sh install
-cd skills/fix-review && ./setup.sh install          # current project
-cd skills/fix-review && ./setup.sh install --global  # all projects
+cd skills/fix-review && ./setup.sh install           # global (default)
+cd skills/fix-review && ./setup.sh install --local   # current project only
 ```

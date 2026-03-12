@@ -22,7 +22,8 @@ cd vibe-coding-script/claude-code
 ./setup.sh install iterm-status --lang zh   # 只装 Tab 指示器（中文）
 ./setup.sh install iterm-monitor --lang zh  # 只装 Session 面板（中文）
 ./setup.sh install dashboard                # 只装终端仪表盘
-./setup.sh install skills/fix-review        # 只装 fix-review 技能
+./setup.sh install skills/fix-review             # 只装 fix-review 技能（全局，默认）
+./setup.sh install skills/fix-review --local    # 只装 fix-review 技能（仅当前项目）
 ```
 
 管理：
@@ -189,8 +190,8 @@ Claude Code [自定义技能](https://docs.anthropic.com/en/docs/claude-code/ski
 **安装：**
 
 ```bash
-./setup.sh install skills/fix-review    # 安装到当前项目
-cd skills/fix-review && ./setup.sh install --global  # 全局安装
+./setup.sh install skills/fix-review          # 全局安装（默认）
+./setup.sh install skills/fix-review --local  # 仅安装到当前项目
 ```
 
 **工作流程：**
@@ -210,6 +211,6 @@ cd auto-approve && ./setup.sh install
 cd iterm-status && ./setup.sh install --lang zh
 cd iterm-monitor && ./setup.sh install
 cd dashboard && ./setup.sh install
-cd skills/fix-review && ./setup.sh install          # 当前项目
-cd skills/fix-review && ./setup.sh install --global  # 全局安装
+cd skills/fix-review && ./setup.sh install           # 全局（默认）
+cd skills/fix-review && ./setup.sh install --local   # 仅当前项目
 ```
